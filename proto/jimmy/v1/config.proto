@@ -1,0 +1,25 @@
+syntax = "proto3";
+package jimmy.v1;
+
+import "buf/validate/validate.proto";
+
+// The .jimmy.yml configuration file.
+message Config {
+  // The location of the migrations directory.
+  string path = 1 [(buf.validate.field).required = true];
+
+  // The Google project.
+  string project = 2;
+
+  // The Spanner instance ID.
+  string instance_id = 3;
+
+  // The Spanner database ID.
+  string database_id = 4;
+
+  // The migration table.
+  string table = 5 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.pattern = "^[a-zA-Z][a-zA-Z0-9_]*[a-zA-Z0-9]$"
+  ];
+}

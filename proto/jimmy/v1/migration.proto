@@ -1,0 +1,83 @@
+syntax = "proto3";
+package jimmy.v1;
+
+enum Environment {
+  // All environments.
+  ALL = 0;
+
+  // The Google Cloud environment.
+  GOOGLE_CLOUD = 1;
+
+  // The emulator environment.
+  EMULATOR = 2;
+}
+
+enum Template {
+  // No default specified
+  TEMPLATE_UNSPECIFIED = 0;
+
+  // Create a new database.
+  CREATE_TABLE = 1;
+
+  // Drop an existing table.
+  DROP_TABLE = 2;
+
+  // Add a new column to a table.
+  ADD_COLUMN = 3;
+
+  // Drop an existing column.
+  DROP_COLUMN = 4;
+
+  // Set a default on an existing column.
+  SET_DEFAULT = 5;
+
+  // Drop the default from a column.
+  DROP_DEFAULT = 6;
+
+  // Add a check constraint to an existing table.
+  ADD_CHECK_CONSTRAINT = 7;
+
+  // Add a foreign key constraint to an existing table.
+  ADD_FOREIGN_KEY_CONSTRAINT = 8;
+
+  // Drop a constraint from an existing table.
+  DROP_CONSTRAINT = 9;
+
+  // Create a new index.
+  CREATE_INDEX = 10;
+
+  // Drop an existing index.
+  DROP_INDEX = 11;
+}
+
+enum Type {
+  // Automatically detect statement type.
+  AUTOMATIC = 0;
+
+  // The SQL is a DDL statement.
+  DDL = 1;
+
+  // The SQL is a DML statement.
+  DML = 2;
+
+  // The SQL is a partitioned DML statement.
+  PARTITIONED_DML = 3;
+}
+
+// A SQL statement.
+message Statement {
+  // A SQL statement to execute.
+  string sql = 1;
+
+  // The environment in which to run the statement.
+  Environment env = 2;
+
+  // The type of statement.
+  Type type = 3;
+}
+
+// A Jimmy migration file.
+message Migration {
+  // The DDL statements to execute.
+  repeated Statement upgrade = 1;
+}

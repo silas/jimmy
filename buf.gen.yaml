@@ -1,0 +1,13 @@
+version: v2
+managed:
+  enabled: true
+  disable:
+    - file_option: go_package_prefix
+      module: buf.build/bufbuild/protovalidate
+  override:
+    - file_option: go_package_prefix
+      value: github.com/silas/jimmy/internal/pb
+plugins:
+  - remote: buf.build/protocolbuffers/go:v1.35.1
+    out: ./internal/pb
+    opt: paths=source_relative
