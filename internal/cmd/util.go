@@ -63,7 +63,10 @@ func newMigrations(cmd *cobra.Command, load bool) (*migrations.Migrations, error
 		m.Config.Project = project
 	}
 	if m.Config.Project == "" {
-		m.Config.Project = os.Getenv(constants.EnvProject)
+		m.Config.Project = os.Getenv(constants.EnvProjectId)
+	}
+	if m.Config.Project == "" {
+		m.Config.Project = os.Getenv(constants.EnvGoogleCloudProject)
 	}
 
 	instanceId, err := cmd.Flags().GetString(flagInstance)
@@ -74,7 +77,7 @@ func newMigrations(cmd *cobra.Command, load bool) (*migrations.Migrations, error
 		m.Config.InstanceId = instanceId
 	}
 	if m.Config.InstanceId == "" {
-		m.Config.InstanceId = os.Getenv(constants.EnvInstance)
+		m.Config.InstanceId = os.Getenv(constants.EnvInstanceId)
 	}
 
 	databaseId, err := cmd.Flags().GetString(flagDatabase)
@@ -85,7 +88,7 @@ func newMigrations(cmd *cobra.Command, load bool) (*migrations.Migrations, error
 		m.Config.DatabaseId = databaseId
 	}
 	if m.Config.DatabaseId == "" {
-		m.Config.DatabaseId = os.Getenv(constants.EnvDatabase)
+		m.Config.DatabaseId = os.Getenv(constants.EnvDatabaseId)
 	}
 
 	if flagSet(cmd, flagEmulator) {

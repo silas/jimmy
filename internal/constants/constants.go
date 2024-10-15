@@ -8,7 +8,8 @@ const (
 
 	EnvEmulatorHost        = "SPANNER_EMULATOR_HOST"
 	EnvEmulatorHostDefault = "127.0.0.1:9010"
-	EnvProject             = "SPANNER_PROJECT"
-	EnvInstance            = "SPANNER_INSTANCE"
-	EnvDatabase            = "SPANNER_DATABASE"
+	EnvGoogleCloudProject  = "GOOGLE_CLOUD_PROJECT"
+	EnvProjectId           = "SPANNER_PROJECT_ID"
+	EnvInstanceId          = "SPANNER_INSTANCE_ID"
+	EnvDatabaseId          = "SPANNER_DATABASE_ID"
 )

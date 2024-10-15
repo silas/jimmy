@@ -6,9 +6,10 @@ import (
 
 func newUpgrade() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "upgrade",
-		Short: "Run all schema upgrades",
-		Args:  args(),
+		Use:     "upgrade",
+		Short:   "Run all schema upgrades",
+		Aliases: []string{"up"},
+		Args:    args(),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m, err := newMigrations(cmd, true)
 			if err != nil {
