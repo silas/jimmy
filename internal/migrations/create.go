@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/silas/jimmy/internal/constants"
 	jimmyv1 "github.com/silas/jimmy/internal/pb/jimmy/v1"
 )
 
@@ -45,7 +46,7 @@ func (m *Migrations) Create(ctx context.Context, input CreateInput) (int, error)
 func (m *Migrations) createMigration(name string, migration *jimmyv1.Migration) (int, error) {
 	m.latestId++
 
-	fileName := fmt.Sprintf("%05d_%s.yaml", m.latestId, name)
+	fileName := fmt.Sprintf("%05d_%s%s", m.latestId, name, constants.FileExt)
 
 	m.migrations[m.latestId] = fileName
 

@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/silas/jimmy/internal/constants"
 	jimmyv1 "github.com/silas/jimmy/internal/pb/jimmy/v1"
 )
 
@@ -46,6 +47,10 @@ func (m *Migrations) Load(_ context.Context) error {
 		}
 
 		name := file.Name()
+
+		if !strings.HasSuffix(name, constants.FileExt) {
+			continue
+		}
 
 		idx := strings.Index(file.Name(), "_")
 		if idx == -1 {

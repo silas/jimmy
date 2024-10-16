@@ -8,8 +8,8 @@ message Config {
   // The location of the migrations directory.
   string path = 1 [(buf.validate.field).required = true];
 
-  // The Google project.
-  string project = 2;
+  // The Google project ID.
+  string project_id = 2;
 
   // The Spanner instance ID.
   string instance_id = 3;
