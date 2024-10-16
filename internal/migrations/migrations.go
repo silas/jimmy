@@ -85,13 +85,13 @@ func (m *Migrations) MigrationName(id int) string {
 	}
 
 	name = name[idx+1:]
-	name, _ = strings.CutSuffix(name, ".yaml")
+	name, _ = strings.CutSuffix(name, constants.FileExt)
 	name = strings.ReplaceAll(name, "_", " ")
 	return name
 }
 
 func (m *Migrations) InstancesName() string {
-	return fmt.Sprintf("projects/%s/instances", m.Config.Project)
+	return fmt.Sprintf("projects/%s/instances", m.Config.ProjectId)
 }
 
 func (m *Migrations) InstanceName() string {

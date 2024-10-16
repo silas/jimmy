@@ -60,13 +60,13 @@ func newMigrations(cmd *cobra.Command, load bool) (*migrations.Migrations, error
 		return nil, err
 	}
 	if project != "" {
-		m.Config.Project = project
+		m.Config.ProjectId = project
 	}
-	if m.Config.Project == "" {
-		m.Config.Project = os.Getenv(constants.EnvProjectId)
+	if m.Config.ProjectId == "" {
+		m.Config.ProjectId = os.Getenv(constants.EnvProjectId)
 	}
-	if m.Config.Project == "" {
-		m.Config.Project = os.Getenv(constants.EnvGoogleCloudProject)
+	if m.Config.ProjectId == "" {
+		m.Config.ProjectId = os.Getenv(constants.EnvGoogleCloudProject)
 	}
 
 	instanceId, err := cmd.Flags().GetString(flagInstance)

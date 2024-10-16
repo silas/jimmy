@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,15 +32,32 @@ func TestMigrations(t *testing.T) {
 		require.Equal(t, 0, h.Migrations.LatestId())
 	}
 
+	// validate
+	{
+		require.NoError(t, h.Migrations.Validate())
+	}
+
 	// dml migration
 	{
 		id, err := h.Migrations.Create(h.Ctx, migrations.CreateInput{
-			Name:     "test_init",
+			Name:     "test-init",
 			Template: jimmyv1.Template_CREATE_TABLE,
 		})
 		require.NoError(t, err)
 		require.Equal(t, 1, id)
 		require.Equal(t, id, h.Migrations.LatestId())
+
+		migrationPath := h.Migrations.MigrationPath(1)
+		require.NotEmpty(t, migrationPath)
+		require.True(t, strings.HasSuffix(migrationPath, constants.FileExt))
+		require.Contains(t, migrationPath, "00001_test_init.yaml")
+
+		stat, err := os.Stat(migrationPath)
+		require.NoError(t, err)
+		require.True(t, stat.Mode().IsRegular())
+
+		migrationName := h.Migrations.MigrationName(1)
+		require.Equal(t, "test init", migrationName)
 
 		_, err = h.list()
 		require.Error(t, err)
@@ -308,7 +326,7 @@ func helper(t *testing.T) *helperData {
 	t.Cleanup(h.Migrations.Close)
 
 	h.Migrations.Config.Path = path.Join(tmpDir, constants.MigrationsPath)
-	h.Migrations.Config.Project = "demo-project"
+	h.Migrations.Config.ProjectId = "demo-project"
 	h.Migrations.Config.InstanceId = "test"
 	h.Migrations.Config.DatabaseId = fmt.Sprintf("test%d", rand.Int63n(999999))
 

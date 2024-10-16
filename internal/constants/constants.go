@@ -2,7 +2,8 @@ package constants
 
 const (
 	AppName         = "jimmy"
-	ConfigFile      = ".jimmy.yaml"
+	FileExt         = ".yaml"
+	ConfigFile      = ".jimmy" + FileExt
 	MigrationsPath  = "./migrations"
 	MigrationsTable = "migrations"
 
