@@ -34,7 +34,7 @@ func TestMigrations(t *testing.T) {
 	// dml migration
 	{
 		id, err := h.Migrations.Create(h.Ctx, migrations.CreateInput{
-			Name:     "test",
+			Name:     "test_init",
 			Template: jimmyv1.Template_CREATE_TABLE,
 		})
 		require.NoError(t, err)
@@ -44,8 +44,26 @@ func TestMigrations(t *testing.T) {
 		_, err = h.list()
 		require.Error(t, err)
 
-		err = h.Migrations.Upgrade(h.Ctx)
+		var started, completed bool
+
+		err = h.Migrations.Upgrade(
+			h.Ctx,
+			migrations.UpgradeOnStart(func(id int, name string) {
+				require.False(t, started)
+				require.Equal(t, 1, id)
+				require.Equal(t, "test init", name)
+				started = true
+			}),
+			migrations.UpgradeOnComplete(func(id int, name string) {
+				require.False(t, completed)
+				require.Equal(t, 1, id)
+				require.Equal(t, "test init", name)
+				completed = true
+			}),
+		)
 		require.NoError(t, err)
+		require.True(t, started)
+		require.True(t, completed)
 
 		data, err := h.list()
 		require.NoError(t, err)
