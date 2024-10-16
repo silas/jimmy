@@ -12,7 +12,35 @@ import (
 	jimmyv1 "github.com/silas/jimmy/internal/pb/jimmy/v1"
 )
 
-func (m *Migrations) Upgrade(ctx context.Context) error {
+type OnMigration func(id int, name string)
+
+type upgradeOptions struct {
+	onInit     func(toRun int)
+	onStart    OnMigration
+	onComplete OnMigration
+}
+
+type UpgradeOption func(o *upgradeOptions)
+
+func UpgradeOnStart(m OnMigration) UpgradeOption {
+	return func(o *upgradeOptions) {
+		o.onStart = m
+	}
+}
+
+func UpgradeOnComplete(m OnMigration) UpgradeOption {
+	return func(o *upgradeOptions) {
+		o.onComplete = m
+	}
+}
+
+func (m *Migrations) Upgrade(ctx context.Context, opts ...UpgradeOption) error {
+	o := &upgradeOptions{}
+
+	for _, opt := range opts {
+		opt(o)
+	}
+
 	err := m.ensureAll(ctx)
 	if err != nil {
 		return err
@@ -42,6 +70,12 @@ func (m *Migrations) Upgrade(ctx context.Context) error {
 		migration, err := m.LoadMigration(id)
 		if err != nil {
 			return fmt.Errorf("failed to load migration %d: %w", id, err)
+		}
+
+		name := m.MigrationName(id)
+
+		if o.onStart != nil {
+			o.onStart(id, name)
 		}
 
 		err = m.startMigration(ctx, db, id)
@@ -92,6 +126,10 @@ func (m *Migrations) Upgrade(ctx context.Context) error {
 		err = m.completeMigration(ctx, db, id)
 		if err != nil {
 			return err
+		}
+
+		if o.onComplete != nil {
+			o.onComplete(id, name)
 		}
 	}
 

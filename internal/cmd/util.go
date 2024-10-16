@@ -186,3 +186,26 @@ func setupMigrationFlags(cmd *cobra.Command) {
 	cmd.Flags().StringP(flagTemplate, "t", "", "SQL template")
 	cmd.Flags().StringP(flagType, "", "", "type of statement (DDL, DML, PARTITIONED_DML)")
 }
+
+func printEnums[d ~int32](
+	cmd *cobra.Command,
+	enum map[int32]string,
+	skipFirst bool,
+	defaultValue d,
+) {
+	for i := range int32(len(enum)) {
+		if i == 0 && skipFirst {
+			continue
+		}
+
+		name := enum[i]
+		name = strings.ToLower(name)
+		name = strings.ReplaceAll(name, "_", "-")
+
+		if i == int32(defaultValue) {
+			cmd.Println(name, "(default)")
+		} else {
+			cmd.Println(name)
+		}
+	}
+}

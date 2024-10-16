@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
@@ -70,6 +71,23 @@ func (m *Migrations) MigrationPath(id int) string {
 	}
 
 	return filepath.Join(m.Config.Path, name)
+}
+
+func (m *Migrations) MigrationName(id int) string {
+	name := m.migrations[id]
+	if name == "" {
+		return ""
+	}
+
+	idx := strings.Index(name, "_")
+	if idx == -1 {
+		return ""
+	}
+
+	name = name[idx+1:]
+	name, _ = strings.CutSuffix(name, ".yaml")
+	name = strings.ReplaceAll(name, "_", " ")
+	return name
 }
 
 func (m *Migrations) InstancesName() string {
