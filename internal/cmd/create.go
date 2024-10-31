@@ -11,6 +11,7 @@ const (
 	flagSQL      = "sql"
 	flagTemplate = "template"
 	flagType     = "type"
+	flagSquash   = "squash"
 )
 
 func newCreate() *cobra.Command {
@@ -30,12 +31,18 @@ func newCreate() *cobra.Command {
 				return err
 			}
 
+			squashID, err := cmd.Flags().GetInt(flagSquash)
+			if err != nil {
+				return err
+			}
+
 			m, err := ms.Create(cmd.Context(), migrations.CreateInput{
 				Name:     args[0],
 				SQL:      flags.SQL,
 				Env:      flags.Env,
 				Template: flags.Template,
 				Type:     flags.Type,
+				SquashID: squashID,
 			})
 			if err != nil {
 				return err
@@ -48,6 +55,8 @@ func newCreate() *cobra.Command {
 	}
 
 	setupMigrationFlags(cmd)
+
+	cmd.Flags().IntP(flagSquash, "", 0, "squash ID")
 
 	return cmd
 }

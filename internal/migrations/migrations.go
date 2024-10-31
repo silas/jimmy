@@ -18,6 +18,7 @@ type Migrations struct {
 
 	emulator   bool
 	migrations map[int]*Migration
+	squash     map[int]int
 	latestID   int
 
 	instanceAdmin *instance.InstanceAdminClient
@@ -35,6 +36,7 @@ func New(path string) *Migrations {
 
 		emulator:   os.Getenv(constants.EnvEmulatorHost) != "",
 		migrations: map[int]*Migration{},
+		squash:     map[int]int{},
 	}
 }
 

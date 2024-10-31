@@ -15,6 +15,8 @@ const (
 )
 
 func New() *cobra.Command {
+	cobra.EnableCommandSorting = false
+
 	cmd := &cobra.Command{
 		Use:           constants.AppName,
 		SilenceUsage:  false,
@@ -24,7 +26,7 @@ func New() *cobra.Command {
 
 	cmd.PersistentFlags().StringP(flagConfig, "c", constants.ConfigFile, "configuration file")
 	cmd.PersistentFlags().BoolP(flagEmulator, "", false, "set whether to enable emulator mode (default automatically detected)")
-	cmd.PersistentFlags().StringP(flagProject, "p", "", "set Google project")
+	cmd.PersistentFlags().StringP(flagProject, "p", "", "set Google project ID")
 	cmd.PersistentFlags().StringP(flagInstance, "i", "", "set Spanner instance ID")
 	cmd.PersistentFlags().StringP(flagDatabase, "d", "", "set Spanner database ID")
 
@@ -33,8 +35,7 @@ func New() *cobra.Command {
 	cmd.AddCommand(newCreate())
 	cmd.AddCommand(newAdd())
 	cmd.AddCommand(newUpgrade())
-	cmd.AddCommand(newEnvironments())
-	cmd.AddCommand(newTemplates())
+	cmd.AddCommand(newShow())
 
 	return cmd
 }

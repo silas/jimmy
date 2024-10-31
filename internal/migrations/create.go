@@ -15,6 +15,7 @@ type CreateInput struct {
 	Env      jimmyv1.Environment
 	Template jimmyv1.Template
 	Type     jimmyv1.Type
+	SquashID int
 }
 
 func (ms *Migrations) Create(ctx context.Context, input CreateInput) (*Migration, error) {
@@ -37,22 +38,41 @@ func (ms *Migrations) Create(ctx context.Context, input CreateInput) (*Migration
 		}
 	}
 
-	return ms.create(slug, &jimmyv1.Migration{
+	m := &jimmyv1.Migration{
 		Upgrade: []*jimmyv1.Statement{statement},
-	})
+	}
+	if input.SquashID > 0 {
+		sm, err := ms.Get(input.SquashID)
+		if err != nil {
+			return nil, err
+		}
+
+		if squashID, found := sm.SquashID(); found {
+			return nil, fmt.Errorf(
+				"new squash migration can't reference existing squash migration %d",
+				squashID,
+			)
+		}
+
+		squashID := int32(sm.ID())
+
+		m.SquashId = &squashID
+	}
+
+	return ms.create(slug, m)
 }
 
 func (ms *Migrations) create(slug string, data *jimmyv1.Migration) (*Migration, error) {
-	ms.latestID++
+	id := ms.latestID + 1
 
 	m := newMigration(
 		ms,
-		ms.latestID,
-		fmt.Sprintf("%05d_%s%s", ms.latestID, slug, constants.FileExt),
+		id,
+		fmt.Sprintf("%05d_%s%s", id, slug, constants.FileExt),
 		data,
 	)
 
-	ms.migrations[ms.latestID] = m
+	ms.setMigration(m)
 
 	err := Marshal(m.Path(), data)
 	if err != nil {
@@ -60,4 +80,14 @@ func (ms *Migrations) create(slug string, data *jimmyv1.Migration) (*Migration, 
 	}
 
 	return m, err
+}
+
+func (ms *Migrations) setMigration(m *Migration) {
+	ms.migrations[m.id] = m
+	ms.latestID = max(ms.latestID, m.id)
+
+	squashID, found := m.SquashID()
+	if found {
+		ms.squash[squashID] = max(m.id, ms.squash[squashID])
+	}
 }

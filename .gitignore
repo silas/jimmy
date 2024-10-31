@@ -1,3 +1,4 @@
 /.jimmy.yaml
+/.pre-commit-config.yaml
 /dist
 /migrations

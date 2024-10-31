@@ -7,7 +7,7 @@ import (
 func newInit() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Initialize configuration files",
+		Short: "Initialize migrations",
 		Args:  args(),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ms, err := newMigrations(cmd, false)

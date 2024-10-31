@@ -9,7 +9,7 @@ import (
 func newTemplates() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "templates",
-		Short: "Show templates",
+		Short: "Show template options",
 		Args:  args(),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputEnums(

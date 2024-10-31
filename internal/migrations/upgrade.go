@@ -65,10 +65,24 @@ func (ms *Migrations) Upgrade(ctx context.Context, opts ...UpgradeOption) error 
 		return err
 	}
 
-	for id := currentID + 1; id <= ms.latestID; id++ {
+	id := currentID
+
+	for id < ms.latestID {
+		id++
+		startID := id
+
+		if skipID := ms.squash[id]; skipID > id {
+			id = skipID
+		}
+
 		m, err := ms.Get(id)
 		if err != nil {
 			return err
+		}
+
+		squashID, found := m.SquashID()
+		if found && squashID != startID {
+			continue
 		}
 
 		if o.onStart != nil {
