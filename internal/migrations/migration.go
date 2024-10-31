@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"iter"
 	"path/filepath"
 	"strings"
 
@@ -69,9 +70,21 @@ func (m *Migration) Summary() string {
 	return strings.ReplaceAll(m.Slug(), "_", " ")
 }
 
-func (m *Migration) Data() *jimmyv1.Migration {
+func (m *Migration) SquashID() (int, bool) {
 	if m != nil && m.data != nil {
-		return proto.Clone(m.data).(*jimmyv1.Migration)
+		return int(m.data.GetSquashId()), m.data.SquashId != nil
 	}
-	return nil
+	return 0, false
+}
+
+func (m *Migration) Upgrade() iter.Seq[*jimmyv1.Statement] {
+	return func(yield func(*jimmyv1.Statement) bool) {
+		if m != nil {
+			for _, s := range m.data.GetUpgrade() {
+				if !yield(proto.Clone(s).(*jimmyv1.Statement)) {
+					return
+				}
+			}
+		}
+	}
 }

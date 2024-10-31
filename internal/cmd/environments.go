@@ -9,7 +9,7 @@ import (
 func newEnvironments() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "environments",
-		Short:   "Show environments",
+		Short:   "Show environment options",
 		Aliases: []string{"envs"},
 		Args:    args(),
 		RunE: func(cmd *cobra.Command, args []string) error {

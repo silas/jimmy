@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -89,7 +90,7 @@ func TestMigrations(t *testing.T) {
 		m, err = h.Migrations.Get(record.ID)
 		require.NoError(t, err)
 
-		statements := m.Data().GetUpgrade()
+		statements := slices.Collect(m.Upgrade())
 		require.Len(t, statements, 1)
 
 		statement := statements[0]
@@ -140,7 +141,7 @@ func TestMigrations(t *testing.T) {
 		m, err = h.Migrations.Get(record.ID)
 		require.NoError(t, err)
 
-		statements := m.Data().GetUpgrade()
+		statements := slices.Collect(m.Upgrade())
 		require.Len(t, statements, 2)
 
 		statement := statements[0]
@@ -177,7 +178,7 @@ func TestMigrations(t *testing.T) {
 		m, err = h.Migrations.Get(record.ID)
 		require.NoError(t, err)
 
-		statements := m.Data().GetUpgrade()
+		statements := slices.Collect(m.Upgrade())
 		require.Len(t, statements, 1)
 
 		statement := statements[0]
@@ -235,7 +236,7 @@ func TestMigrations(t *testing.T) {
 		m, err = h.Migrations.Get(record.ID)
 		require.NoError(t, err)
 
-		statements := m.Data().GetUpgrade()
+		statements := slices.Collect(m.Upgrade())
 		require.Len(t, statements, 1)
 
 		statement := statements[0]
@@ -281,13 +282,59 @@ func TestMigrations(t *testing.T) {
 		m, err = h.Migrations.Get(record.ID)
 		require.NoError(t, err)
 
-		statements := m.Data().GetUpgrade()
+		statements := slices.Collect(m.Upgrade())
 		require.Len(t, statements, 1)
 
 		statement := statements[0]
 		require.Contains(t, statement.Sql, "UPDATE test SET update_time")
 		require.Equal(t, jimmyv1.Environment_ALL.String(), statement.Env.String())
 		require.Equal(t, jimmyv1.Type_PARTITIONED_DML.String(), statement.Type.String())
+	}
+
+	// squash
+	{
+		m, err := h.Migrations.Create(h.Ctx, migrations.CreateInput{
+			Name: "skip",
+			SQL:  `INSERT INTO test (name, update_time) VALUES ("three", CURRENT_TIMESTAMP)`,
+		})
+		require.NoError(t, err)
+
+		_, err = h.Migrations.Create(h.Ctx, migrations.CreateInput{
+			Name: "skip2",
+			SQL:  `INSERT INTO test (name, update_time) VALUES ("four", CURRENT_TIMESTAMP)`,
+		})
+		require.NoError(t, err)
+
+		_, err = h.Migrations.Create(h.Ctx, migrations.CreateInput{
+			Name:     "squash",
+			SQL:      `INSERT INTO test (name, update_time) VALUES ("five", CURRENT_TIMESTAMP)`,
+			SquashID: m.ID(),
+		})
+		require.NoError(t, err)
+
+		err = h.Migrations.Upgrade(h.Ctx)
+		require.NoError(t, err)
+
+		records, err := h.records()
+		require.NoError(t, err)
+		require.Len(t, records, 6)
+	}
+
+	// squash (skip)
+	{
+		_, err = h.Migrations.Create(h.Ctx, migrations.CreateInput{
+			Name:     "squash-skip",
+			SQL:      `INSERT INTO test (name, update_time) VALUES ("seven", CURRENT_TIMESTAMP)`,
+			SquashID: 5,
+		})
+		require.NoError(t, err)
+
+		err = h.Migrations.Upgrade(h.Ctx)
+		require.NoError(t, err)
+
+		records, err := h.records()
+		require.NoError(t, err)
+		require.Len(t, records, 6)
 	}
 
 	// failure
@@ -297,17 +344,17 @@ func TestMigrations(t *testing.T) {
 			SQL:  `CREATE failure`,
 		})
 		require.NoError(t, err)
-		require.Equal(t, 6, m.ID())
+		require.Equal(t, 10, m.ID())
 
 		err = h.Migrations.Upgrade(h.Ctx)
 		require.Error(t, err)
 
 		records, err := h.records()
 		require.NoError(t, err)
-		require.Len(t, records, 6)
+		require.Len(t, records, 7)
 
-		record := records[5]
-		require.Equal(t, 6, record.ID)
+		record := records[6]
+		require.Equal(t, 10, record.ID)
 		require.True(t, record.CompleteTime.IsZero())
 	}
 }

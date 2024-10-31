@@ -75,9 +75,7 @@ func (ms *Migrations) Load(_ context.Context) error {
 			return err
 		}
 
-		ms.migrations[id] = m
-
-		ms.latestID = max(ms.latestID, id)
+		ms.setMigration(m)
 	}
 
 	return nil

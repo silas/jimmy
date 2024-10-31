@@ -80,4 +80,14 @@ message Statement {
 message Migration {
   // The DDL statements to execute.
   repeated Statement upgrade = 1;
+
+  // The starting migration to squash.
+  //
+  // If the migration hasn't run yet then when an upgrade reaches
+  // the squash ID it will jump directly to this migration,
+  // skipping the in-between migrations.
+  //
+  // If the specified migration has already been run then this
+  // migration will be skipped.
+  optional int32 squash_id = 2;
 }

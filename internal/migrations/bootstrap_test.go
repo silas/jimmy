@@ -1,12 +1,14 @@
 package migrations_test
 
 import (
+	"slices"
 	"testing"
 
 	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
 	"github.com/stretchr/testify/require"
 
 	"github.com/silas/jimmy/internal/constants"
+	"github.com/silas/jimmy/internal/migrations"
 	jimmyv1 "github.com/silas/jimmy/internal/pb/jimmy/v1"
 )
 
@@ -35,9 +37,22 @@ func TestMigrations_Bootstrap(t *testing.T) {
 	require.Equal(t, 1, m.ID())
 	require.Equal(t, m.ID(), h.Migrations.LatestID())
 
-	data := m.Data()
-	require.NotNil(t, data)
-	require.Len(t, data.Upgrade, 1)
-	require.Contains(t, data.Upgrade[0].Sql, "CREATE TABLE test")
-	require.Equal(t, jimmyv1.Type_DDL, data.Upgrade[0].Type)
+	statements := slices.Collect(m.Upgrade())
+	require.Len(t, statements, 1)
+	require.Contains(t, statements[0].Sql, "CREATE TABLE test")
+	require.Equal(t, jimmyv1.Type_DDL, statements[0].Type)
+
+	_, err = h.Migrations.Create(h.Ctx, migrations.CreateInput{
+		Name: "insert",
+		SQL:  `INSERT INTO test (id, update_time) VALUES ("one", CURRENT_TIMESTAMP)`,
+	})
+	require.NoError(t, err)
+
+	err = h.Migrations.Upgrade(h.Ctx)
+	require.NoError(t, err)
+
+	records, err := h.records()
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+	require.Equal(t, 2, records[0].ID)
 }

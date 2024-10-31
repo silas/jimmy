@@ -15,10 +15,6 @@ func (ms *Migrations) Bootstrap(ctx context.Context) (*Migration, error) {
 		return nil, err
 	}
 
-	if ms.latestID != 0 {
-		return nil, errors.New("bootstrap requires no existing migrations")
-	}
-
 	var upgrade []*jimmyv1.Statement
 
 	dbAdmin, err := ms.DatabaseAdmin(ctx)
@@ -51,7 +47,10 @@ func (ms *Migrations) Bootstrap(ctx context.Context) (*Migration, error) {
 		upgrade = append(upgrade, statement)
 	}
 
+	squashID := int32(ms.latestID)
+
 	return ms.create("init", &jimmyv1.Migration{
-		Upgrade: upgrade,
+		Upgrade:  upgrade,
+		SquashId: &squashID,
 	})
 }
