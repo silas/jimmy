@@ -66,7 +66,7 @@ func (m *Migration) Slug() string {
 	return slug
 }
 
-func (m *Migration) Summary() string {
+func (m *Migration) Name() string {
 	return strings.ReplaceAll(m.Slug(), "_", " ")
 }
 

@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/silas/jimmy/internal/migrations"
+	jimmyv1 "github.com/silas/jimmy/internal/pb/jimmy/v1"
 )
 
 func newUpgrade() *cobra.Command {
@@ -24,7 +25,22 @@ func newUpgrade() *cobra.Command {
 			err = ms.Upgrade(
 				cmd.Context(),
 				migrations.UpgradeOnStart(func(m *migrations.Migration) {
-					cmd.Println(fmt.Sprintf("migration[%d]: Running %q", m.ID(), m.Summary()))
+					cmd.Println(fmt.Sprintf("migration[%d]: Started %q", m.ID(), m.Name()))
+				}),
+				migrations.UpgradeOnBatch(func(m *migrations.Migration, batch []*jimmyv1.Statement) {
+					var suffix string
+
+					if len(batch) != 1 {
+						suffix = "s"
+					}
+
+					cmd.Println(fmt.Sprintf(
+						"migration[%d]: Running %d %s statement%s",
+						m.ID(),
+						len(batch),
+						batch[0].Type.String(),
+						suffix,
+					))
 				}),
 				migrations.UpgradeOnComplete(func(m *migrations.Migration) {
 					cmd.Println(fmt.Sprintf("migration[%d]: Completed", m.ID()))
@@ -34,7 +50,7 @@ func newUpgrade() *cobra.Command {
 				return err
 			}
 
-			cmd.Println("Done")
+			cmd.Println(fmt.Sprintf("Done at migration %d", ms.LatestID()))
 
 			return nil
 		},

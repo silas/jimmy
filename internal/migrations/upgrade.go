@@ -14,22 +14,31 @@ import (
 
 type OnMigration func(m *Migration)
 
+type OnMigrationBatch func(m *Migration, batch []*jimmyv1.Statement)
+
 type upgradeOptions struct {
 	onStart    OnMigration
+	onBatch    OnMigrationBatch
 	onComplete OnMigration
 }
 
 type UpgradeOption func(o *upgradeOptions)
 
-func UpgradeOnStart(m OnMigration) UpgradeOption {
+func UpgradeOnStart(onStart OnMigration) UpgradeOption {
 	return func(o *upgradeOptions) {
-		o.onStart = m
+		o.onStart = onStart
 	}
 }
 
-func UpgradeOnComplete(m OnMigration) UpgradeOption {
+func UpgradeOnBatch(onBatch OnMigrationBatch) UpgradeOption {
 	return func(o *upgradeOptions) {
-		o.onComplete = m
+		o.onBatch = onBatch
+	}
+}
+
+func UpgradeOnComplete(onComplete OnMigration) UpgradeOption {
+	return func(o *upgradeOptions) {
+		o.onComplete = onComplete
 	}
 }
 
@@ -94,8 +103,7 @@ func (ms *Migrations) Upgrade(ctx context.Context, opts ...UpgradeOption) error 
 			return err
 		}
 
-		var sqlStatements []string
-		var sqlType jimmyv1.Type
+		var batch []*jimmyv1.Statement
 
 		for pos, statement := range m.data.Upgrade {
 			switch statement.Env {
@@ -117,19 +125,19 @@ func (ms *Migrations) Upgrade(ctx context.Context, opts ...UpgradeOption) error 
 				statement.Type = detectType(statement.Sql)
 			}
 
-			if sqlType != statement.Type {
-				err = ms.runStatements(ctx, dbAdmin, db, sqlType, sqlStatements)
+			if len(batch) > 0 && batch[0].Type != statement.Type {
+				err = ms.batch(ctx, dbAdmin, db, m, batch, o.onBatch)
 				if err != nil {
 					return err
 				}
-				sqlStatements = nil
+
+				batch = nil
 			}
 
-			sqlStatements = append(sqlStatements, statement.Sql)
-			sqlType = statement.Type
+			batch = append(batch, statement)
 		}
 
-		err = ms.runStatements(ctx, dbAdmin, db, sqlType, sqlStatements)
+		err = ms.batch(ctx, dbAdmin, db, m, batch, o.onBatch)
 		if err != nil {
 			return err
 		}
@@ -178,22 +186,33 @@ func (ms *Migrations) startMigration(ctx context.Context, db *spanner.Client, id
 	return err
 }
 
-func (ms *Migrations) runStatements(
+func (ms *Migrations) batch(
 	ctx context.Context,
 	dbAdmin *database.DatabaseAdminClient,
 	db *spanner.Client,
-	sqlType jimmyv1.Type,
-	sqlStatements []string,
+	m *Migration,
+	batch []*jimmyv1.Statement,
+	onRun OnMigrationBatch,
 ) error {
-	if len(sqlStatements) == 0 {
+	if len(batch) == 0 {
 		return nil
 	}
 
-	switch sqlType {
+	if onRun != nil {
+		onRun(m, batch)
+	}
+
+	switch batch[0].Type {
 	case jimmyv1.Type_DDL:
+		var statements []string
+
+		for _, b := range batch {
+			statements = append(statements, b.Sql)
+		}
+
 		op, err := dbAdmin.UpdateDatabaseDdl(ctx, &databasepb.UpdateDatabaseDdlRequest{
 			Database:   ms.DatabaseName(),
-			Statements: sqlStatements,
+			Statements: statements,
 		})
 		if err != nil {
 			return err
@@ -206,10 +225,8 @@ func (ms *Migrations) runStatements(
 	case jimmyv1.Type_DML:
 		var statements []spanner.Statement
 
-		for _, sql := range sqlStatements {
-			statements = append(statements, spanner.Statement{
-				SQL: sql,
-			})
+		for _, b := range batch {
+			statements = append(statements, spanner.Statement{SQL: b.Sql})
 		}
 
 		_, err := db.ReadWriteTransaction(ctx, func(ctx context.Context, tx *spanner.ReadWriteTransaction) error {
@@ -220,16 +237,16 @@ func (ms *Migrations) runStatements(
 			return err
 		}
 	case jimmyv1.Type_PARTITIONED_DML:
-		for _, sql := range sqlStatements {
+		for _, b := range batch {
 			_, err := db.PartitionedUpdate(ctx, spanner.Statement{
-				SQL: sql,
+				SQL: b.Sql,
 			})
 			if err != nil {
 				return err
 			}
 		}
 	default:
-		return fmt.Errorf("unhandled type %s", sqlType.String())
+		return fmt.Errorf("unhandled type %s", batch[0].String())
 	}
 
 	return nil

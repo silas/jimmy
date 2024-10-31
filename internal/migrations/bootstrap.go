@@ -3,6 +3,8 @@ package migrations
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 
 	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
 
@@ -33,7 +35,13 @@ func (ms *Migrations) Bootstrap(ctx context.Context) (*Migration, error) {
 		return nil, errors.New("no statements")
 	}
 
+	migrationTableDDL := fmt.Sprintf("CREATE TABLE %s (", ms.Config.Table)
+
 	for _, sql := range ddl.Statements {
+		if strings.Contains(sql, migrationTableDDL) {
+			continue
+		}
+
 		statement, err := newStatement(
 			sql,
 			jimmyv1.Environment_ALL,
