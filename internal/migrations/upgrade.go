@@ -65,7 +65,7 @@ func (ms *Migrations) Upgrade(ctx context.Context, opts ...UpgradeOption) error 
 		return err
 	}
 
-	for id := currentID + 1; id <= ms.latestId; id++ {
+	for id := currentID + 1; id <= ms.latestID; id++ {
 		m, err := ms.Get(id)
 		if err != nil {
 			return err

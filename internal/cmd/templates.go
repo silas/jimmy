@@ -12,7 +12,7 @@ func newTemplates() *cobra.Command {
 		Short: "Show templates",
 		Args:  args(),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			printEnums(
+			outputEnums(
 				cmd,
 				jimmyv1.Template_name,
 				true,

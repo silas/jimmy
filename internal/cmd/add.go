@@ -22,11 +22,11 @@ func newAdd() *cobra.Command {
 
 			var id int
 
-			argId := args[0]
-			if argId == "latest" {
-				id = ms.LatestId()
+			argID := args[0]
+			if argID == "latest" {
+				id = ms.LatestID()
 			} else {
-				id, err = strconv.Atoi(argId)
+				id, err = strconv.Atoi(argID)
 				if err != nil {
 					return err
 				}
