@@ -54,30 +54,38 @@ func TestMigrations(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, stat.Mode().IsRegular())
 
-		require.Equal(t, "test init", m.Summary())
+		require.Equal(t, "test init", m.Name())
 
 		_, err = h.records()
 		require.Error(t, err)
 
 		var started, completed bool
+		var batchCount int
 
 		err = h.Migrations.Upgrade(
 			h.Ctx,
 			migrations.UpgradeOnStart(func(m *migrations.Migration) {
 				require.False(t, started)
 				require.Equal(t, 1, m.ID())
-				require.Equal(t, "test init", m.Summary())
+				require.Equal(t, "test init", m.Name())
 				started = true
+			}),
+			migrations.UpgradeOnBatch(func(m *migrations.Migration, batch []*jimmyv1.Statement) {
+				require.Equal(t, 1, m.ID())
+				require.Equal(t, "test init", m.Name())
+				require.Len(t, batch, 1)
+				batchCount++
 			}),
 			migrations.UpgradeOnComplete(func(m *migrations.Migration) {
 				require.False(t, completed)
 				require.Equal(t, 1, m.ID())
-				require.Equal(t, "test init", m.Summary())
+				require.Equal(t, "test init", m.Name())
 				completed = true
 			}),
 		)
 		require.NoError(t, err)
 		require.True(t, started)
+		require.Equal(t, 1, batchCount)
 		require.True(t, completed)
 
 		records, err := h.records()
