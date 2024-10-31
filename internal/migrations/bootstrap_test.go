@@ -30,13 +30,14 @@ func TestMigrations_Bootstrap(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, op.Wait(h.Ctx))
 
-	id, err := h.Migrations.Bootstrap(h.Ctx)
+	m, err := h.Migrations.Bootstrap(h.Ctx)
 	require.NoError(t, err)
-	require.Equal(t, 1, id)
+	require.Equal(t, 1, m.ID())
+	require.Equal(t, m.ID(), h.Migrations.LatestId())
 
-	m, err := h.Migrations.LoadMigration(h.Migrations.LatestId())
-	require.NoError(t, err)
-	require.Len(t, m.Upgrade, 1)
-	require.Contains(t, m.Upgrade[0].Sql, "CREATE TABLE test")
-	require.Equal(t, jimmyv1.Type_DDL, m.Upgrade[0].Type)
+	data := m.Data()
+	require.NotNil(t, data)
+	require.Len(t, data.Upgrade, 1)
+	require.Contains(t, data.Upgrade[0].Sql, "CREATE TABLE test")
+	require.Equal(t, jimmyv1.Type_DDL, data.Upgrade[0].Type)
 }

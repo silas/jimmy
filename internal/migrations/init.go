@@ -10,30 +10,30 @@ import (
 	"github.com/silas/jimmy/internal/constants"
 )
 
-func (m *Migrations) Init(ctx context.Context) error {
-	_, err := os.Stat(m.Path)
+func (ms *Migrations) Init(ctx context.Context) error {
+	_, err := os.Stat(ms.Path)
 	if err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
 			return err
 		}
 	} else {
-		return fmt.Errorf("%q already exists", m.Path)
+		return fmt.Errorf("%q already exists", ms.Path)
 	}
 
-	if m.Config.Path == "" {
-		m.Config.Path = constants.MigrationsPath
+	if ms.Config.Path == "" {
+		ms.Config.Path = constants.MigrationsPath
 	}
 
-	if m.Config.Table == "" {
-		m.Config.Table = constants.MigrationsTable
+	if ms.Config.Table == "" {
+		ms.Config.Table = constants.MigrationsTable
 	}
 
-	err = Marshal(m.Path, m.Config)
+	err = Marshal(ms.Path, ms.Config)
 	if err != nil {
 		return err
 	}
 
-	err = m.ensureEnv(ctx)
+	err = ms.ensureEnv(ctx)
 	if err != nil {
 		return err
 	}

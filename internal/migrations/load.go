@@ -13,11 +13,11 @@ import (
 	jimmyv1 "github.com/silas/jimmy/internal/pb/jimmy/v1"
 )
 
-func (m *Migrations) Load(_ context.Context) error {
-	fileInfo, err := os.Stat(m.Path)
+func (ms *Migrations) Load(_ context.Context) error {
+	fileInfo, err := os.Stat(ms.Path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("%q config file not found", m.Path)
+			return fmt.Errorf("%q config file not found", ms.Path)
 		}
 
 		return err
@@ -26,17 +26,17 @@ func (m *Migrations) Load(_ context.Context) error {
 	mode := fileInfo.Mode()
 
 	if mode.IsDir() {
-		return fmt.Errorf("%q is a directory, expected a text file", m.Path)
+		return fmt.Errorf("%q is a directory, expected a text file", ms.Path)
 	} else if !mode.IsRegular() {
-		return fmt.Errorf("%q is not a regular file", m.Path)
+		return fmt.Errorf("%q is not a regular file", ms.Path)
 	}
 
-	err = Unmarshal(m.Path, m.Config)
+	err = Unmarshal(ms.Path, ms.Config)
 	if err != nil {
 		return err
 	}
 
-	files, err := os.ReadDir(m.Config.Path)
+	files, err := os.ReadDir(ms.Config.Path)
 	if err != nil {
 		return err
 	}
@@ -46,41 +46,39 @@ func (m *Migrations) Load(_ context.Context) error {
 			continue
 		}
 
-		name := file.Name()
+		fileName := file.Name()
 
-		if !strings.HasSuffix(name, constants.FileExt) {
+		if !strings.HasSuffix(fileName, constants.FileExt) {
 			continue
 		}
 
-		idx := strings.Index(file.Name(), "_")
+		idx := strings.Index(fileName, "_")
 		if idx == -1 {
 			continue
 		}
 
-		id, err := strconv.Atoi(name[:idx])
+		id, err := strconv.Atoi(fileName[:idx])
 		if err != nil {
 			continue
 		}
 
-		if conflictingName, conflicts := m.migrations[id]; conflicts {
-			return fmt.Errorf("migration %d has conflicting migration files %q and %q", id, name, conflictingName)
+		m, err := ms.Get(id)
+		if err == nil {
+			return fmt.Errorf("migration %d has conflicting migration files %q and %q",
+				id, fileName, m.fileName)
 		}
 
-		m.migrations[id] = name
+		m = newMigration(ms, id, fileName, &jimmyv1.Migration{})
 
-		m.latestId = max(m.latestId, id)
+		err = Unmarshal(m.Path(), m.data)
+		if err != nil {
+			return err
+		}
+
+		ms.migrations[id] = m
+
+		ms.latestId = max(ms.latestId, id)
 	}
 
 	return nil
-}
-
-func (m *Migrations) LoadMigration(id int) (*jimmyv1.Migration, error) {
-	migration := &jimmyv1.Migration{}
-
-	err := Unmarshal(m.MigrationPath(id), migration)
-	if err != nil {
-		return nil, err
-	}
-
-	return migration, nil
 }

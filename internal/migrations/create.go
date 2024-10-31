@@ -3,7 +3,6 @@ package migrations
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/silas/jimmy/internal/constants"
@@ -18,42 +17,47 @@ type CreateInput struct {
 	Type     jimmyv1.Type
 }
 
-func (m *Migrations) Create(ctx context.Context, input CreateInput) (int, error) {
-	err := m.ensureEnv(ctx)
+func (ms *Migrations) Create(ctx context.Context, input CreateInput) (*Migration, error) {
+	err := ms.ensureEnv(ctx)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	statement, err := generateStatement(input.SQL, input.Env, input.Template, input.Type)
+	statement, err := newStatement(input.SQL, input.Env, input.Template, input.Type)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	name := Slugify(input.Name)
-	if name == "" {
+	slug := Slugify(input.Name)
+	if slug == "" {
 		if input.Template != jimmyv1.Template_TEMPLATE_UNSPECIFIED {
-			name = strings.ToLower(jimmyv1.Template_name[int32(input.Template)])
+			slug = strings.ToLower(jimmyv1.Template_name[int32(input.Template)])
 		} else {
-			name = "none"
+			slug = "none"
 		}
 	}
 
-	return m.createMigration(name, &jimmyv1.Migration{
+	return ms.create(slug, &jimmyv1.Migration{
 		Upgrade: []*jimmyv1.Statement{statement},
 	})
 }
 
-func (m *Migrations) createMigration(name string, migration *jimmyv1.Migration) (int, error) {
-	m.latestId++
+func (ms *Migrations) create(slug string, data *jimmyv1.Migration) (*Migration, error) {
+	ms.latestId++
 
-	fileName := fmt.Sprintf("%05d_%s%s", m.latestId, name, constants.FileExt)
+	m := newMigration(
+		ms,
+		ms.latestId,
+		fmt.Sprintf("%05d_%s%s", ms.latestId, slug, constants.FileExt),
+		data,
+	)
 
-	m.migrations[m.latestId] = fileName
+	ms.migrations[ms.latestId] = m
 
-	err := Marshal(filepath.Join(m.Config.Path, fileName), migration)
+	err := Marshal(m.Path(), data)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return m.latestId, err
+	return m, err
 }
