@@ -102,7 +102,7 @@ func templateSQL(template jimmyv1.Template) (string, error) {
 	return sql, nil
 }
 
-func generateStatement(
+func newStatement(
 	sql string,
 	env jimmyv1.Environment,
 	template jimmyv1.Template,

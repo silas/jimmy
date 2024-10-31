@@ -10,13 +10,13 @@ func newInit() *cobra.Command {
 		Short: "Initialize configuration files",
 		Args:  args(),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m, err := newMigrations(cmd, false)
+			ms, err := newMigrations(cmd, false)
 			if err != nil {
 				return err
 			}
-			defer m.Close()
+			defer ms.Close()
 
-			return m.Init(cmd.Context())
+			return ms.Init(cmd.Context())
 		},
 	}
 

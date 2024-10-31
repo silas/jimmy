@@ -19,18 +19,18 @@ func newCreate() *cobra.Command {
 		Short: "Create a new migration",
 		Args:  args("name"),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m, err := newMigrations(cmd, true)
+			ms, err := newMigrations(cmd, true)
 			if err != nil {
 				return err
 			}
-			defer m.Close()
+			defer ms.Close()
 
 			flags, err := parseMigrationFlags(cmd)
 			if err != nil {
 				return err
 			}
 
-			id, err := m.Create(cmd.Context(), migrations.CreateInput{
+			m, err := ms.Create(cmd.Context(), migrations.CreateInput{
 				Name:     args[0],
 				SQL:      flags.SQL,
 				Env:      flags.Env,
@@ -41,7 +41,7 @@ func newCreate() *cobra.Command {
 				return err
 			}
 
-			cmd.Println(m.MigrationPath(id))
+			cmd.Println(m.Path())
 
 			return nil
 		},

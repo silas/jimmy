@@ -23,6 +23,7 @@ func main() {
 	defer cancel()
 
 	c := cmd.New()
+	c.SetContext(ctx)
 
 	err := c.Execute()
 	if err != nil {

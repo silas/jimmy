@@ -12,10 +12,9 @@ import (
 	jimmyv1 "github.com/silas/jimmy/internal/pb/jimmy/v1"
 )
 
-type OnMigration func(id int, name string)
+type OnMigration func(m *Migration)
 
 type upgradeOptions struct {
-	onInit     func(toRun int)
 	onStart    OnMigration
 	onComplete OnMigration
 }
@@ -34,51 +33,49 @@ func UpgradeOnComplete(m OnMigration) UpgradeOption {
 	}
 }
 
-func (m *Migrations) Upgrade(ctx context.Context, opts ...UpgradeOption) error {
+func (ms *Migrations) Upgrade(ctx context.Context, opts ...UpgradeOption) error {
 	o := &upgradeOptions{}
 
 	for _, opt := range opts {
 		opt(o)
 	}
 
-	err := m.ensureAll(ctx)
+	err := ms.ensureAll(ctx)
 	if err != nil {
 		return err
 	}
 
-	dbAdmin, err := m.DatabaseAdmin(ctx)
+	dbAdmin, err := ms.DatabaseAdmin(ctx)
 	if err != nil {
 		return err
 	}
 
-	db, err := m.Database(ctx)
+	db, err := ms.Database(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = m.ensureTable(ctx, dbAdmin, db)
+	err = ms.ensureTable(ctx, dbAdmin, db)
 	if err != nil {
 		return fmt.Errorf("failed to ensure migration table: %w", err)
 	}
 
-	currentID, err := m.getCurrentID(ctx, db)
+	currentID, err := ms.getCurrentID(ctx, db)
 	if err != nil {
 		return err
 	}
 
-	for id := currentID + 1; id <= m.latestId; id++ {
-		migration, err := m.LoadMigration(id)
+	for id := currentID + 1; id <= ms.latestId; id++ {
+		m, err := ms.Get(id)
 		if err != nil {
-			return fmt.Errorf("failed to load migration %d: %w", id, err)
+			return err
 		}
-
-		name := m.MigrationName(id)
 
 		if o.onStart != nil {
-			o.onStart(id, name)
+			o.onStart(m)
 		}
 
-		err = m.startMigration(ctx, db, id)
+		err = ms.startMigration(ctx, db, id)
 		if err != nil {
 			return err
 		}
@@ -86,16 +83,16 @@ func (m *Migrations) Upgrade(ctx context.Context, opts ...UpgradeOption) error {
 		var sqlStatements []string
 		var sqlType jimmyv1.Type
 
-		for pos, statement := range migration.Upgrade {
+		for pos, statement := range m.data.Upgrade {
 			switch statement.Env {
 			case jimmyv1.Environment_ALL:
 				// ok
 			case jimmyv1.Environment_GOOGLE_CLOUD:
-				if m.emulator {
+				if ms.emulator {
 					continue
 				}
 			case jimmyv1.Environment_EMULATOR:
-				if !m.emulator {
+				if !ms.emulator {
 					continue
 				}
 			default:
@@ -107,7 +104,7 @@ func (m *Migrations) Upgrade(ctx context.Context, opts ...UpgradeOption) error {
 			}
 
 			if sqlType != statement.Type {
-				err = m.runStatements(ctx, dbAdmin, db, sqlType, sqlStatements)
+				err = ms.runStatements(ctx, dbAdmin, db, sqlType, sqlStatements)
 				if err != nil {
 					return err
 				}
@@ -118,30 +115,30 @@ func (m *Migrations) Upgrade(ctx context.Context, opts ...UpgradeOption) error {
 			sqlType = statement.Type
 		}
 
-		err = m.runStatements(ctx, dbAdmin, db, sqlType, sqlStatements)
+		err = ms.runStatements(ctx, dbAdmin, db, sqlType, sqlStatements)
 		if err != nil {
 			return err
 		}
 
-		err = m.completeMigration(ctx, db, id)
+		err = ms.completeMigration(ctx, db, id)
 		if err != nil {
 			return err
 		}
 
 		if o.onComplete != nil {
-			o.onComplete(id, name)
+			o.onComplete(m)
 		}
 	}
 
 	return nil
 }
 
-func (m *Migrations) getCurrentID(ctx context.Context, db *spanner.Client) (int, error) {
+func (ms *Migrations) getCurrentID(ctx context.Context, db *spanner.Client) (int, error) {
 	var currentID int64
 	var complete bool
 
 	err := db.Single().Query(ctx, spanner.Statement{
-		SQL: fmt.Sprintf(constants.SelectMigration, m.Config.Table),
+		SQL: fmt.Sprintf(constants.SelectMigration, ms.Config.Table),
 	}).Do(func(r *spanner.Row) error {
 		return r.Columns(&currentID, &complete)
 	})
@@ -156,10 +153,10 @@ func (m *Migrations) getCurrentID(ctx context.Context, db *spanner.Client) (int,
 	return int(currentID), nil
 }
 
-func (m *Migrations) startMigration(ctx context.Context, db *spanner.Client, id int) error {
+func (ms *Migrations) startMigration(ctx context.Context, db *spanner.Client, id int) error {
 	_, err := db.Apply(ctx, []*spanner.Mutation{
 		spanner.Insert(
-			m.Config.Table,
+			ms.Config.Table,
 			[]string{"id", "start_time"},
 			[]any{int64(id), spanner.CommitTimestamp},
 		),
@@ -167,7 +164,7 @@ func (m *Migrations) startMigration(ctx context.Context, db *spanner.Client, id 
 	return err
 }
 
-func (m *Migrations) runStatements(
+func (ms *Migrations) runStatements(
 	ctx context.Context,
 	dbAdmin *database.DatabaseAdminClient,
 	db *spanner.Client,
@@ -181,7 +178,7 @@ func (m *Migrations) runStatements(
 	switch sqlType {
 	case jimmyv1.Type_DDL:
 		op, err := dbAdmin.UpdateDatabaseDdl(ctx, &databasepb.UpdateDatabaseDdlRequest{
-			Database:   m.DatabaseName(),
+			Database:   ms.DatabaseName(),
 			Statements: sqlStatements,
 		})
 		if err != nil {
@@ -224,10 +221,10 @@ func (m *Migrations) runStatements(
 	return nil
 }
 
-func (m *Migrations) completeMigration(ctx context.Context, db *spanner.Client, id int) error {
+func (ms *Migrations) completeMigration(ctx context.Context, db *spanner.Client, id int) error {
 	_, err := db.Apply(ctx, []*spanner.Mutation{
 		spanner.Update(
-			m.Config.Table,
+			ms.Config.Table,
 			[]string{"id", "complete_time"},
 			[]any{int64(id), spanner.CommitTimestamp},
 		),

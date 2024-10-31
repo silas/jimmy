@@ -10,18 +10,18 @@ func newBootstrap() *cobra.Command {
 		Short: "Create initial migration",
 		Args:  args(),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m, err := newMigrations(cmd, true)
+			ms, err := newMigrations(cmd, true)
 			if err != nil {
 				return err
 			}
-			defer m.Close()
+			defer ms.Close()
 
-			id, err := m.Bootstrap(cmd.Context())
+			m, err := ms.Bootstrap(cmd.Context())
 			if err != nil {
 				return err
 			}
 
-			cmd.Println(m.MigrationPath(id))
+			cmd.Println(m.Path())
 
 			return nil
 		},

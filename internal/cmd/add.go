@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -15,17 +14,17 @@ func newAdd() *cobra.Command {
 		Short: "Add a statement to an existing migration",
 		Args:  args("id"),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m, err := newMigrations(cmd, true)
+			ms, err := newMigrations(cmd, true)
 			if err != nil {
 				return err
 			}
-			defer m.Close()
+			defer ms.Close()
 
 			var id int
 
 			argId := args[0]
 			if argId == "latest" {
-				id = m.LatestId()
+				id = ms.LatestId()
 			} else {
 				id, err = strconv.Atoi(argId)
 				if err != nil {
@@ -33,10 +32,9 @@ func newAdd() *cobra.Command {
 				}
 			}
 
-			migrationPath := m.MigrationPath(id)
-
-			if migrationPath == "" {
-				return fmt.Errorf("migration %d not found", id)
+			m, err := ms.Get(id)
+			if err != nil {
+				return err
 			}
 
 			flags, err := parseMigrationFlags(cmd)
@@ -44,7 +42,7 @@ func newAdd() *cobra.Command {
 				return err
 			}
 
-			err = m.Add(cmd.Context(), migrations.AddInput{
+			err = ms.Add(cmd.Context(), migrations.AddInput{
 				ID:       id,
 				SQL:      flags.SQL,
 				Template: flags.Template,
@@ -55,7 +53,7 @@ func newAdd() *cobra.Command {
 				return err
 			}
 
-			cmd.Println(migrationPath)
+			cmd.Println(m.Path())
 
 			return nil
 		},

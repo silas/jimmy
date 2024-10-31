@@ -2,7 +2,6 @@ package migrations
 
 import (
 	"context"
-	"fmt"
 
 	jimmyv1 "github.com/silas/jimmy/internal/pb/jimmy/v1"
 )
@@ -15,20 +14,20 @@ type AddInput struct {
 	Type     jimmyv1.Type
 }
 
-func (m *Migrations) Add(_ context.Context, input AddInput) error {
-	migration, err := m.LoadMigration(input.ID)
-	if err != nil {
-		return fmt.Errorf("failed to load migration %d: %w", input.ID, err)
-	}
-
-	statement, err := generateStatement(input.SQL, input.Env, input.Template, input.Type)
+func (ms *Migrations) Add(_ context.Context, input AddInput) error {
+	m, err := ms.Get(input.ID)
 	if err != nil {
 		return err
 	}
 
-	migration.Upgrade = append(migration.Upgrade, statement)
+	statement, err := newStatement(input.SQL, input.Env, input.Template, input.Type)
+	if err != nil {
+		return err
+	}
 
-	err = Marshal(m.MigrationPath(input.ID), migration)
+	m.data.Upgrade = append(m.data.Upgrade, statement)
+
+	err = Marshal(m.Path(), m.data)
 	if err != nil {
 		return err
 	}

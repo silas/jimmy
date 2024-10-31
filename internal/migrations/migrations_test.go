@@ -39,43 +39,39 @@ func TestMigrations(t *testing.T) {
 
 	// dml migration
 	{
-		id, err := h.Migrations.Create(h.Ctx, migrations.CreateInput{
+		m, err := h.Migrations.Create(h.Ctx, migrations.CreateInput{
 			Name:     "test-init",
 			Template: jimmyv1.Template_CREATE_TABLE,
 		})
 		require.NoError(t, err)
-		require.Equal(t, 1, id)
-		require.Equal(t, id, h.Migrations.LatestId())
+		require.Equal(t, 1, m.ID())
+		require.Equal(t, m.ID(), h.Migrations.LatestId())
+		require.Equal(t, "00001_test_init.yaml", m.FileName())
+		require.True(t, strings.HasSuffix(m.Path(), "/"+m.FileName()))
 
-		migrationPath := h.Migrations.MigrationPath(1)
-		require.NotEmpty(t, migrationPath)
-		require.True(t, strings.HasSuffix(migrationPath, constants.FileExt))
-		require.Contains(t, migrationPath, "00001_test_init.yaml")
-
-		stat, err := os.Stat(migrationPath)
+		stat, err := os.Stat(m.Path())
 		require.NoError(t, err)
 		require.True(t, stat.Mode().IsRegular())
 
-		migrationName := h.Migrations.MigrationName(1)
-		require.Equal(t, "test init", migrationName)
+		require.Equal(t, "test init", m.Summary())
 
-		_, err = h.list()
+		_, err = h.records()
 		require.Error(t, err)
 
 		var started, completed bool
 
 		err = h.Migrations.Upgrade(
 			h.Ctx,
-			migrations.UpgradeOnStart(func(id int, name string) {
+			migrations.UpgradeOnStart(func(m *migrations.Migration) {
 				require.False(t, started)
-				require.Equal(t, 1, id)
-				require.Equal(t, "test init", name)
+				require.Equal(t, 1, m.ID())
+				require.Equal(t, "test init", m.Summary())
 				started = true
 			}),
-			migrations.UpgradeOnComplete(func(id int, name string) {
+			migrations.UpgradeOnComplete(func(m *migrations.Migration) {
 				require.False(t, completed)
-				require.Equal(t, 1, id)
-				require.Equal(t, "test init", name)
+				require.Equal(t, 1, m.ID())
+				require.Equal(t, "test init", m.Summary())
 				completed = true
 			}),
 		)
@@ -83,21 +79,23 @@ func TestMigrations(t *testing.T) {
 		require.True(t, started)
 		require.True(t, completed)
 
-		data, err := h.list()
+		records, err := h.records()
 		require.NoError(t, err)
-		require.Len(t, data, 1)
+		require.Len(t, records, 1)
 
-		latest := data[0]
-		require.Equal(t, 1, latest.ID)
+		record := records[0]
+		require.Equal(t, 1, record.ID)
 
-		migration, err := h.Migrations.LoadMigration(latest.ID)
+		m, err = h.Migrations.Get(record.ID)
 		require.NoError(t, err)
-		require.Len(t, migration.Upgrade, 1)
 
-		upgrade := migration.Upgrade[0]
-		require.Contains(t, upgrade.Sql, "CREATE TABLE")
-		require.Equal(t, jimmyv1.Environment_ALL.String(), upgrade.Env.String())
-		require.Equal(t, jimmyv1.Type_DDL.String(), upgrade.Type.String())
+		statements := m.Data().GetUpgrade()
+		require.Len(t, statements, 1)
+
+		statement := statements[0]
+		require.Contains(t, statement.Sql, "CREATE TABLE")
+		require.Equal(t, jimmyv1.Environment_ALL.String(), statement.Env.String())
+		require.Equal(t, jimmyv1.Type_DDL.String(), statement.Type.String())
 	}
 
 	// no-op when latest
@@ -105,19 +103,20 @@ func TestMigrations(t *testing.T) {
 		err := h.Migrations.Upgrade(h.Ctx)
 		require.NoError(t, err)
 
-		data, err := h.list()
+		records, err := h.records()
 		require.NoError(t, err)
-		require.Len(t, data, 1)
+		require.Len(t, records, 1)
 	}
 
 	// add migration
 	{
-		id, err := h.Migrations.Create(h.Ctx, migrations.CreateInput{
+		m, err := h.Migrations.Create(h.Ctx, migrations.CreateInput{
 			Name: "add-slug",
 			SQL:  "ALTER TABLE test ADD COLUMN slug STRING(MAX)",
 		})
 		require.NoError(t, err)
-		require.Equal(t, 2, id)
+		require.NotNil(t, m)
+		require.Equal(t, 2, m.ID())
 		require.Equal(t, 2, h.Migrations.LatestId())
 
 		err = h.Migrations.Add(h.Ctx, migrations.AddInput{
@@ -129,57 +128,62 @@ func TestMigrations(t *testing.T) {
 		err = h.Migrations.Upgrade(h.Ctx)
 		require.NoError(t, err)
 
-		data, err := h.list()
+		records, err := h.records()
 		require.NoError(t, err)
-		require.Len(t, data, 2)
+		require.Len(t, records, 2)
 
-		latest := data[1]
-		require.Equal(t, 2, latest.ID)
-		require.False(t, latest.StartTime.IsZero())
-		require.True(t, latest.CompleteTime.After(latest.StartTime))
+		record := records[1]
+		require.Equal(t, 2, record.ID)
+		require.False(t, record.StartTime.IsZero())
+		require.True(t, record.CompleteTime.After(record.StartTime))
 
-		migration, err := h.Migrations.LoadMigration(latest.ID)
+		m, err = h.Migrations.Get(record.ID)
 		require.NoError(t, err)
-		require.Len(t, migration.Upgrade, 2)
 
-		upgrade := migration.Upgrade[0]
-		require.Contains(t, upgrade.Sql, "ADD COLUMN slug")
-		require.Equal(t, jimmyv1.Environment_ALL.String(), upgrade.Env.String())
-		require.Equal(t, jimmyv1.Type_DDL.String(), upgrade.Type.String())
+		statements := m.Data().GetUpgrade()
+		require.Len(t, statements, 2)
 
-		upgrade = migration.Upgrade[1]
-		require.Contains(t, upgrade.Sql, "ALTER COLUMN id")
-		require.Equal(t, jimmyv1.Environment_ALL.String(), upgrade.Env.String())
-		require.Equal(t, jimmyv1.Type_DDL.String(), upgrade.Type.String())
+		statement := statements[0]
+		require.Contains(t, statement.Sql, "ADD COLUMN slug")
+		require.Equal(t, jimmyv1.Environment_ALL.String(), statement.Env.String())
+		require.Equal(t, jimmyv1.Type_DDL.String(), statement.Type.String())
+
+		statement = statements[1]
+		require.Contains(t, statement.Sql, "ALTER COLUMN id")
+		require.Equal(t, jimmyv1.Environment_ALL.String(), statement.Env.String())
+		require.Equal(t, jimmyv1.Type_DDL.String(), statement.Type.String())
 	}
 
 	// insert table
 	{
-		id, err := h.Migrations.Create(h.Ctx, migrations.CreateInput{
+		m, err := h.Migrations.Create(h.Ctx, migrations.CreateInput{
 			Name: "insert",
 			SQL:  `INSERT INTO test (name, update_time) VALUES ("one", CURRENT_TIMESTAMP)`,
 		})
 		require.NoError(t, err)
-		require.Equal(t, 3, id)
+		require.NotNil(t, m)
+		require.Equal(t, 3, m.ID())
 
 		err = h.Migrations.Upgrade(h.Ctx)
 		require.NoError(t, err)
 
-		data, err := h.list()
+		records, err := h.records()
 		require.NoError(t, err)
-		require.Len(t, data, 3)
+		require.Len(t, records, 3)
 
-		latest := data[2]
-		require.Equal(t, 3, latest.ID)
+		record := records[2]
+		require.Equal(t, 3, record.ID)
 
-		migration, err := h.Migrations.LoadMigration(latest.ID)
+		m, err = h.Migrations.Get(record.ID)
 		require.NoError(t, err)
-		require.Len(t, migration.Upgrade, 1)
 
-		upgrade := migration.Upgrade[0]
-		require.Contains(t, upgrade.Sql, "INSERT INTO")
-		require.Equal(t, jimmyv1.Environment_ALL.String(), upgrade.Env.String())
-		require.Equal(t, jimmyv1.Type_DML.String(), migration.Upgrade[0].Type.String())
+		statements := m.Data().GetUpgrade()
+		require.Len(t, statements, 1)
+
+		statement := statements[0]
+		require.Contains(t, statement.Sql, "INSERT INTO")
+		require.Equal(t, jimmyv1.Environment_ALL.String(), statement.Env.String())
+		require.Equal(t, jimmyv1.Type_DML.String(), statement.Type.String())
 
 		var count int
 
@@ -209,32 +213,35 @@ func TestMigrations(t *testing.T) {
 
 	// emulator only
 	{
-		id, err := h.Migrations.Create(h.Ctx, migrations.CreateInput{
+		m, err := h.Migrations.Create(h.Ctx, migrations.CreateInput{
 			Name: "insert-no-emulator",
 			SQL:  `INSERT INTO test (name, update_time) VALUES ("two", CURRENT_TIMESTAMP)`,
 			Env:  jimmyv1.Environment_GOOGLE_CLOUD,
 		})
 		require.NoError(t, err)
-		require.Equal(t, 4, id)
+		require.NotNil(t, m)
+		require.Equal(t, 4, m.ID())
 
 		err = h.Migrations.Upgrade(h.Ctx)
 		require.NoError(t, err)
 
-		data, err := h.list()
+		records, err := h.records()
 		require.NoError(t, err)
-		require.Len(t, data, 4)
+		require.Len(t, records, 4)
 
-		latest := data[3]
-		require.Equal(t, 4, latest.ID)
+		record := records[3]
+		require.Equal(t, 4, record.ID)
 
-		migration, err := h.Migrations.LoadMigration(latest.ID)
+		m, err = h.Migrations.Get(record.ID)
 		require.NoError(t, err)
-		require.Len(t, migration.Upgrade, 1)
 
-		upgrade := migration.Upgrade[0]
-		require.Contains(t, upgrade.Sql, "INSERT INTO")
-		require.Equal(t, jimmyv1.Environment_GOOGLE_CLOUD.String(), upgrade.Env.String())
-		require.Equal(t, jimmyv1.Type_DML.String(), migration.Upgrade[0].Type.String())
+		statements := m.Data().GetUpgrade()
+		require.Len(t, statements, 1)
+
+		statement := statements[0]
+		require.Contains(t, statement.Sql, "INSERT INTO")
+		require.Equal(t, jimmyv1.Environment_GOOGLE_CLOUD.String(), statement.Env.String())
+		require.Equal(t, jimmyv1.Type_DML.String(), statement.Type.String())
 
 		var count int
 
@@ -253,53 +260,55 @@ func TestMigrations(t *testing.T) {
 
 	// update partitioned DML
 	{
-		id, err := h.Migrations.Create(h.Ctx, migrations.CreateInput{
+		m, err := h.Migrations.Create(h.Ctx, migrations.CreateInput{
 			Name: "invalid",
 			SQL:  `UPDATE test SET update_time = CURRENT_TIMESTAMP WHERE 1=1`,
 			Type: jimmyv1.Type_PARTITIONED_DML,
 		})
 		require.NoError(t, err)
-		require.Equal(t, 5, id)
+		require.Equal(t, 5, m.ID())
 
 		err = h.Migrations.Upgrade(h.Ctx)
 		require.NoError(t, err)
 
-		data, err := h.list()
+		records, err := h.records()
 		require.NoError(t, err)
-		require.Len(t, data, 5)
+		require.Len(t, records, 5)
 
-		latest := data[4]
-		require.Equal(t, 5, latest.ID)
+		record := records[4]
+		require.Equal(t, 5, record.ID)
 
-		migration, err := h.Migrations.LoadMigration(latest.ID)
+		m, err = h.Migrations.Get(record.ID)
 		require.NoError(t, err)
-		require.Len(t, migration.Upgrade, 1)
 
-		upgrade := migration.Upgrade[0]
-		require.Contains(t, upgrade.Sql, "UPDATE test SET update_time")
-		require.Equal(t, jimmyv1.Environment_ALL.String(), upgrade.Env.String())
-		require.Equal(t, jimmyv1.Type_PARTITIONED_DML.String(), migration.Upgrade[0].Type.String())
+		statements := m.Data().GetUpgrade()
+		require.Len(t, statements, 1)
+
+		statement := statements[0]
+		require.Contains(t, statement.Sql, "UPDATE test SET update_time")
+		require.Equal(t, jimmyv1.Environment_ALL.String(), statement.Env.String())
+		require.Equal(t, jimmyv1.Type_PARTITIONED_DML.String(), statement.Type.String())
 	}
 
 	// failure
 	{
-		id, err := h.Migrations.Create(h.Ctx, migrations.CreateInput{
+		m, err := h.Migrations.Create(h.Ctx, migrations.CreateInput{
 			Name: "invalid",
 			SQL:  `CREATE failure`,
 		})
 		require.NoError(t, err)
-		require.Equal(t, 6, id)
+		require.Equal(t, 6, m.ID())
 
 		err = h.Migrations.Upgrade(h.Ctx)
 		require.Error(t, err)
 
-		data, err := h.list()
+		records, err := h.records()
 		require.NoError(t, err)
-		require.Len(t, data, 6)
+		require.Len(t, records, 6)
 
-		latest := data[5]
-		require.Equal(t, 6, latest.ID)
-		require.True(t, latest.CompleteTime.IsZero())
+		record := records[5]
+		require.Equal(t, 6, record.ID)
+		require.True(t, record.CompleteTime.IsZero())
 	}
 }
 
@@ -349,8 +358,8 @@ type helperData struct {
 	Migrations *migrations.Migrations
 }
 
-func (h *helperData) list() ([]*Migration, error) {
-	var data []*Migration
+func (h *helperData) records() ([]*Record, error) {
+	var records []*Record
 
 	db, err := h.Migrations.Database(h.Ctx)
 	if err != nil {
@@ -363,20 +372,20 @@ func (h *helperData) list() ([]*Migration, error) {
 		spanner.AllKeys(),
 		[]string{"id", "start_time", "complete_time"},
 	).Do(func(r *spanner.Row) error {
-		var m Migration
+		var record Record
 
 		var id int64
 		var completeTime spanner.NullTime
 
-		err = r.Columns(&id, &m.StartTime, &completeTime)
+		err = r.Columns(&id, &record.StartTime, &completeTime)
 		if err != nil {
 			return err
 		}
 
-		m.ID = int(id)
-		m.CompleteTime = completeTime.Time
+		record.ID = int(id)
+		record.CompleteTime = completeTime.Time
 
-		data = append(data, &m)
+		records = append(records, &record)
 
 		return nil
 	})
@@ -384,10 +393,10 @@ func (h *helperData) list() ([]*Migration, error) {
 		return nil, err
 	}
 
-	return data, nil
+	return records, nil
 }
 
-type Migration struct {
+type Record struct {
 	ID           int
 	StartTime    time.Time
 	CompleteTime time.Time

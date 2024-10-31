@@ -15,19 +15,19 @@ func newUpgrade() *cobra.Command {
 		Aliases: []string{"up"},
 		Args:    args(),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m, err := newMigrations(cmd, true)
+			ms, err := newMigrations(cmd, true)
 			if err != nil {
 				return err
 			}
-			defer m.Close()
+			defer ms.Close()
 
-			err = m.Upgrade(
+			err = ms.Upgrade(
 				cmd.Context(),
-				migrations.UpgradeOnStart(func(id int, name string) {
-					cmd.Println(fmt.Sprintf("migration[%d]: Running %q", id, name))
+				migrations.UpgradeOnStart(func(m *migrations.Migration) {
+					cmd.Println(fmt.Sprintf("migration[%d]: Running %q", m.ID(), m.Summary()))
 				}),
-				migrations.UpgradeOnComplete(func(id int, name string) {
-					cmd.Println(fmt.Sprintf("migration[%d]: Completed", id))
+				migrations.UpgradeOnComplete(func(m *migrations.Migration) {
+					cmd.Println(fmt.Sprintf("migration[%d]: Completed", m.ID()))
 				}),
 			)
 			if err != nil {
