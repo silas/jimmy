@@ -63,32 +63,32 @@ func newMigrations(cmd *cobra.Command, load bool) (*migrations.Migrations, error
 		m.Config.ProjectId = project
 	}
 	if m.Config.ProjectId == "" {
-		m.Config.ProjectId = os.Getenv(constants.EnvProjectId)
+		m.Config.ProjectId = os.Getenv(constants.EnvProjectID)
 	}
 	if m.Config.ProjectId == "" {
 		m.Config.ProjectId = os.Getenv(constants.EnvGoogleCloudProject)
 	}
 
-	instanceId, err := cmd.Flags().GetString(flagInstance)
+	instanceID, err := cmd.Flags().GetString(flagInstance)
 	if err != nil {
 		return nil, err
 	}
-	if instanceId != "" {
-		m.Config.InstanceId = instanceId
+	if instanceID != "" {
+		m.Config.InstanceId = instanceID
 	}
 	if m.Config.InstanceId == "" {
-		m.Config.InstanceId = os.Getenv(constants.EnvInstanceId)
+		m.Config.InstanceId = os.Getenv(constants.EnvInstanceID)
 	}
 
-	databaseId, err := cmd.Flags().GetString(flagDatabase)
+	databaseID, err := cmd.Flags().GetString(flagDatabase)
 	if err != nil {
 		return nil, err
 	}
-	if databaseId != "" {
-		m.Config.DatabaseId = databaseId
+	if databaseID != "" {
+		m.Config.DatabaseId = databaseID
 	}
 	if m.Config.DatabaseId == "" {
-		m.Config.DatabaseId = os.Getenv(constants.EnvDatabaseId)
+		m.Config.DatabaseId = os.Getenv(constants.EnvDatabaseID)
 	}
 
 	if flagSet(cmd, flagEmulator) {
@@ -126,7 +126,7 @@ type migrationFlags struct {
 }
 
 func parseMigrationFlags(cmd *cobra.Command) (flags migrationFlags, err error) {
-	flags.SQL, err = cmd.Flags().GetString(flagSql)
+	flags.SQL, err = cmd.Flags().GetString(flagSQL)
 	if err != nil {
 		return
 	}
@@ -181,13 +181,13 @@ func parseMigrationFlags(cmd *cobra.Command) (flags migrationFlags, err error) {
 }
 
 func setupMigrationFlags(cmd *cobra.Command) {
-	cmd.Flags().StringP(flagSql, "s", "", "migration SQL")
+	cmd.Flags().StringP(flagSQL, "s", "", "migration SQL")
 	cmd.Flags().StringP(flagEnv, "e", "", "execution environment (GOOGLE_CLOUD, EMULATOR)")
 	cmd.Flags().StringP(flagTemplate, "t", "", "SQL template")
 	cmd.Flags().StringP(flagType, "", "", "type of statement (DDL, DML, PARTITIONED_DML)")
 }
 
-func printEnums[d ~int32](
+func outputEnums[d ~int32](
 	cmd *cobra.Command,
 	enum map[int32]string,
 	skipFirst bool,

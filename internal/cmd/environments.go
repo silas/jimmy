@@ -13,7 +13,7 @@ func newEnvironments() *cobra.Command {
 		Aliases: []string{"envs"},
 		Args:    args(),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			printEnums(
+			outputEnums(
 				cmd,
 				jimmyv1.Environment_name,
 				false,

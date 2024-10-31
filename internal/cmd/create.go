@@ -8,7 +8,7 @@ import (
 
 const (
 	flagEnv      = "env"
-	flagSql      = "sql"
+	flagSQL      = "sql"
 	flagTemplate = "template"
 	flagType     = "type"
 )

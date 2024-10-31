@@ -43,16 +43,16 @@ func (ms *Migrations) Create(ctx context.Context, input CreateInput) (*Migration
 }
 
 func (ms *Migrations) create(slug string, data *jimmyv1.Migration) (*Migration, error) {
-	ms.latestId++
+	ms.latestID++
 
 	m := newMigration(
 		ms,
-		ms.latestId,
-		fmt.Sprintf("%05d_%s%s", ms.latestId, slug, constants.FileExt),
+		ms.latestID,
+		fmt.Sprintf("%05d_%s%s", ms.latestID, slug, constants.FileExt),
 		data,
 	)
 
-	ms.migrations[ms.latestId] = m
+	ms.migrations[ms.latestID] = m
 
 	err := Marshal(m.Path(), data)
 	if err != nil {

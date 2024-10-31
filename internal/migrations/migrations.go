@@ -18,7 +18,7 @@ type Migrations struct {
 
 	emulator   bool
 	migrations map[int]*Migration
-	latestId   int
+	latestID   int
 
 	instanceAdmin *instance.InstanceAdminClient
 	databaseAdmin *database.DatabaseAdminClient
@@ -58,8 +58,8 @@ func (ms *Migrations) Close() {
 	}
 }
 
-func (ms *Migrations) LatestId() int {
-	return ms.latestId
+func (ms *Migrations) LatestID() int {
+	return ms.latestID
 }
 
 func (ms *Migrations) Get(id int) (*Migration, error) {

@@ -15,7 +15,7 @@ func TestMigrations_Bootstrap(t *testing.T) {
 
 	err := h.Migrations.Init(h.Ctx)
 	require.NoError(t, err)
-	require.Equal(t, 0, h.Migrations.LatestId())
+	require.Equal(t, 0, h.Migrations.LatestID())
 
 	_, err = h.Migrations.Bootstrap(h.Ctx)
 	require.EqualError(t, err, "no statements")
@@ -33,7 +33,7 @@ func TestMigrations_Bootstrap(t *testing.T) {
 	m, err := h.Migrations.Bootstrap(h.Ctx)
 	require.NoError(t, err)
 	require.Equal(t, 1, m.ID())
-	require.Equal(t, m.ID(), h.Migrations.LatestId())
+	require.Equal(t, m.ID(), h.Migrations.LatestID())
 
 	data := m.Data()
 	require.NotNil(t, data)

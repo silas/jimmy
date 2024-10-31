@@ -15,7 +15,7 @@ func (ms *Migrations) Bootstrap(ctx context.Context) (*Migration, error) {
 		return nil, err
 	}
 
-	if ms.latestId != 0 {
+	if ms.latestID != 0 {
 		return nil, errors.New("bootstrap requires no existing migrations")
 	}
 

@@ -29,7 +29,7 @@ func TestMigrations(t *testing.T) {
 	{
 		err := h.Migrations.Init(h.Ctx)
 		require.NoError(t, err)
-		require.Equal(t, 0, h.Migrations.LatestId())
+		require.Equal(t, 0, h.Migrations.LatestID())
 	}
 
 	// validate
@@ -45,7 +45,7 @@ func TestMigrations(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.Equal(t, 1, m.ID())
-		require.Equal(t, m.ID(), h.Migrations.LatestId())
+		require.Equal(t, m.ID(), h.Migrations.LatestID())
 		require.Equal(t, "00001_test_init.yaml", m.FileName())
 		require.True(t, strings.HasSuffix(m.Path(), "/"+m.FileName()))
 
@@ -117,7 +117,7 @@ func TestMigrations(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, m)
 		require.Equal(t, 2, m.ID())
-		require.Equal(t, 2, h.Migrations.LatestId())
+		require.Equal(t, 2, h.Migrations.LatestID())
 
 		err = h.Migrations.Add(h.Ctx, migrations.AddInput{
 			ID:  2,
