@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -28,7 +29,7 @@ func newAdd() *cobra.Command {
 			} else {
 				id, err = strconv.Atoi(argID)
 				if err != nil {
-					return err
+					return fmt.Errorf("migration %q not found", argID)
 				}
 			}
 
@@ -43,11 +44,11 @@ func newAdd() *cobra.Command {
 			}
 
 			err = ms.Add(cmd.Context(), migrations.AddInput{
-				ID:       id,
-				SQL:      flags.SQL,
-				Template: flags.Template,
-				Env:      flags.Env,
-				Type:     flags.Type,
+				ID:         id,
+				SQL:        flags.SQL,
+				TemplateID: flags.Template,
+				Env:        flags.Env,
+				Type:       flags.Type,
 			})
 			if err != nil {
 				return err

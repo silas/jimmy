@@ -1,6 +1,8 @@
 syntax = "proto3";
 package jimmy.v1;
 
+import "buf/validate/validate.proto";
+
 enum Environment {
   // All environments.
   ALL = 0;
@@ -10,44 +12,6 @@ enum Environment {
 
   // The emulator environment.
   EMULATOR = 2;
-}
-
-enum Template {
-  // No default specified
-  TEMPLATE_UNSPECIFIED = 0;
-
-  // Create a new database.
-  CREATE_TABLE = 1;
-
-  // Drop an existing table.
-  DROP_TABLE = 2;
-
-  // Add a new column to a table.
-  ADD_COLUMN = 3;
-
-  // Drop an existing column.
-  DROP_COLUMN = 4;
-
-  // Set a default on an existing column.
-  SET_DEFAULT = 5;
-
-  // Drop the default from a column.
-  DROP_DEFAULT = 6;
-
-  // Add a check constraint to an existing table.
-  ADD_CHECK_CONSTRAINT = 7;
-
-  // Add a foreign key constraint to an existing table.
-  ADD_FOREIGN_KEY_CONSTRAINT = 8;
-
-  // Drop a constraint from an existing table.
-  DROP_CONSTRAINT = 9;
-
-  // Create a new index.
-  CREATE_INDEX = 10;
-
-  // Drop an existing index.
-  DROP_INDEX = 11;
 }
 
 enum Type {
@@ -67,7 +31,7 @@ enum Type {
 // A SQL statement.
 message Statement {
   // A SQL statement to execute.
-  string sql = 1;
+  string sql = 1 [(buf.validate.field).required = true];
 
   // The environment in which to run the statement.
   Environment env = 2;

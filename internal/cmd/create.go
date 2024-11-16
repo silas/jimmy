@@ -37,12 +37,12 @@ func newCreate() *cobra.Command {
 			}
 
 			m, err := ms.Create(cmd.Context(), migrations.CreateInput{
-				Name:     args[0],
-				SQL:      flags.SQL,
-				Env:      flags.Env,
-				Template: flags.Template,
-				Type:     flags.Type,
-				SquashID: squashID,
+				Name:       args[0],
+				SQL:        flags.SQL,
+				Env:        flags.Env,
+				TemplateID: flags.Template,
+				Type:       flags.Type,
+				SquashID:   squashID,
 			})
 			if err != nil {
 				return err
