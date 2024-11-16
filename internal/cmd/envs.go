@@ -6,12 +6,11 @@ import (
 	jimmyv1 "github.com/silas/jimmy/internal/pb/jimmy/v1"
 )
 
-func newEnvironments() *cobra.Command {
+func newEnvs() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "environments",
-		Short:   "Show environment options",
-		Aliases: []string{"envs"},
-		Args:    args(),
+		Use:   "envs",
+		Short: "Show environment options",
+		Args:  args(),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputEnums(
 				cmd,
