@@ -14,7 +14,8 @@ Available Commands:
   create      Create a new migration
   add         Add a statement to an existing migration
   upgrade     Run all schema upgrades
-  show        Show options
+  envs        Show environment options
+  templates   Show template options
   help        Help about any command
 
 Flags:

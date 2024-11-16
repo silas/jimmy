@@ -35,7 +35,8 @@ func New() *cobra.Command {
 	cmd.AddCommand(newCreate())
 	cmd.AddCommand(newAdd())
 	cmd.AddCommand(newUpgrade())
-	cmd.AddCommand(newShow())
+	cmd.AddCommand(newEnvs())
+	cmd.AddCommand(newTemplates())
 
 	return cmd
 }
