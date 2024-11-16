@@ -155,14 +155,15 @@ func (ms *Migrations) ensureDatabase(ctx context.Context) error {
 	return nil
 }
 
-func (ms *Migrations) ensureTable(
-	ctx context.Context,
-	dbAdmin *database.DatabaseAdminClient,
-	db *spanner.Client,
-) error {
+func (ms *Migrations) ensureTable(ctx context.Context) error {
+	db, err := ms.Database(ctx)
+	if err != nil {
+		return err
+	}
+
 	var exists bool
 
-	err := db.Single().Query(ctx, spanner.Statement{
+	err = db.Single().Query(ctx, spanner.Statement{
 		SQL: constants.SelectMigrationsTable,
 		Params: map[string]any{
 			"tableSchema": "",
@@ -178,6 +179,11 @@ func (ms *Migrations) ensureTable(
 
 	if exists {
 		return nil
+	}
+
+	dbAdmin, err := ms.DatabaseAdmin(ctx)
+	if err != nil {
+		return err
 	}
 
 	op, err := dbAdmin.UpdateDatabaseDdl(ctx, &databasepb.UpdateDatabaseDdlRequest{

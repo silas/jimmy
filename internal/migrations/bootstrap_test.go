@@ -19,7 +19,7 @@ func TestMigrations_Bootstrap(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, h.Migrations.LatestID())
 
-	_, err = h.Migrations.Bootstrap(h.Ctx)
+	_, err = h.Migrations.Bootstrap(h.Ctx, migrations.BootstrapInput{})
 	require.EqualError(t, err, "no statements")
 
 	dbAdmin, err := h.Migrations.DatabaseAdmin(h.Ctx)
@@ -32,7 +32,7 @@ func TestMigrations_Bootstrap(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, op.Wait(h.Ctx))
 
-	m, err := h.Migrations.Bootstrap(h.Ctx)
+	m, err := h.Migrations.Bootstrap(h.Ctx, migrations.BootstrapInput{})
 	require.NoError(t, err)
 	require.Equal(t, 1, m.ID())
 	require.Equal(t, m.ID(), h.Migrations.LatestID())

@@ -70,10 +70,10 @@ func TestMigrations(t *testing.T) {
 				require.Equal(t, "test init", m.Name())
 				started = true
 			}),
-			migrations.UpgradeOnBatch(func(m *migrations.Migration, batch []*jimmyv1.Statement) {
+			migrations.UpgradeOnBatch(func(m *migrations.Migration, batch *migrations.Batch) {
 				require.Equal(t, 1, m.ID())
 				require.Equal(t, "test init", m.Name())
-				require.Len(t, batch, 1)
+				require.Len(t, batch.Statements, 1)
 				batchCount++
 			}),
 			migrations.UpgradeOnComplete(func(m *migrations.Migration) {
@@ -128,7 +128,7 @@ func TestMigrations(t *testing.T) {
 		require.Equal(t, 2, m.ID())
 		require.Equal(t, 2, h.Migrations.LatestID())
 
-		err = h.Migrations.Add(h.Ctx, migrations.AddInput{
+		err = h.Migrations.AddUpgrade(h.Ctx, migrations.AddUpgradeInput{
 			ID:  2,
 			SQL: "ALTER TABLE test ALTER COLUMN id SET DEFAULT (GENERATE_UUID())",
 		})

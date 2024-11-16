@@ -5,8 +5,9 @@ import (
 	"fmt"
 
 	"cloud.google.com/go/spanner"
-	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/descriptorpb"
 
 	"github.com/silas/jimmy/internal/constants"
 	jimmyv1 "github.com/silas/jimmy/internal/pb/jimmy/v1"
@@ -14,7 +15,7 @@ import (
 
 type OnMigration func(m *Migration)
 
-type OnMigrationBatch func(m *Migration, batch []*jimmyv1.Statement)
+type OnMigrationBatch func(m *Migration, batch *Batch)
 
 type upgradeOptions struct {
 	onStart    OnMigration
@@ -54,22 +55,12 @@ func (ms *Migrations) Upgrade(ctx context.Context, opts ...UpgradeOption) error 
 		return err
 	}
 
-	dbAdmin, err := ms.DatabaseAdmin(ctx)
-	if err != nil {
-		return err
-	}
-
-	db, err := ms.Database(ctx)
-	if err != nil {
-		return err
-	}
-
-	err = ms.ensureTable(ctx, dbAdmin, db)
+	err = ms.ensureTable(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to ensure migration table: %w", err)
 	}
 
-	currentID, err := ms.getCurrentID(ctx, db)
+	currentID, err := ms.getCurrentID(ctx)
 	if err != nil {
 		return err
 	}
@@ -98,15 +89,15 @@ func (ms *Migrations) Upgrade(ctx context.Context, opts ...UpgradeOption) error 
 			o.onStart(m)
 		}
 
-		err = ms.startMigration(ctx, db, id)
+		err = ms.startMigration(ctx, id)
 		if err != nil {
 			return err
 		}
 
-		var batch []*jimmyv1.Statement
+		batch := &Batch{}
 
-		for pos, statement := range m.data.Upgrade {
-			switch statement.Env {
+		for pos, s := range m.data.Upgrade {
+			switch s.Env {
 			case jimmyv1.Environment_ALL:
 				// ok
 			case jimmyv1.Environment_GOOGLE_CLOUD:
@@ -118,31 +109,32 @@ func (ms *Migrations) Upgrade(ctx context.Context, opts ...UpgradeOption) error 
 					continue
 				}
 			default:
-				return fmt.Errorf("unhandled environment %d upgrade[%d]: %s", id, pos, statement.Env.String())
+				return fmt.Errorf("unhandled environment %d upgrade[%d]: %s",
+					id, pos, s.Env.String())
 			}
 
-			if statement.Type == jimmyv1.Type_AUTOMATIC {
-				statement.Type = detectType(statement.Sql)
+			if s.Type == jimmyv1.Type_AUTOMATIC {
+				s.Type = detectType(s.Sql)
 			}
 
-			if len(batch) > 0 && batch[0].Type != statement.Type {
-				err = ms.batch(ctx, dbAdmin, db, m, batch, o.onBatch)
+			if batch.flush(s) {
+				err = ms.runBatch(ctx, m, batch, o.onBatch)
 				if err != nil {
 					return err
 				}
 
-				batch = nil
+				batch.reset()
 			}
 
-			batch = append(batch, statement)
+			batch.add(s)
 		}
 
-		err = ms.batch(ctx, dbAdmin, db, m, batch, o.onBatch)
+		err = ms.runBatch(ctx, m, batch, o.onBatch)
 		if err != nil {
 			return err
 		}
 
-		err = ms.completeMigration(ctx, db, id)
+		err = ms.completeMigration(ctx, id)
 		if err != nil {
 			return err
 		}
@@ -155,11 +147,16 @@ func (ms *Migrations) Upgrade(ctx context.Context, opts ...UpgradeOption) error 
 	return nil
 }
 
-func (ms *Migrations) getCurrentID(ctx context.Context, db *spanner.Client) (int, error) {
+func (ms *Migrations) getCurrentID(ctx context.Context) (int, error) {
+	db, err := ms.Database(ctx)
+	if err != nil {
+		return 0, err
+	}
+
 	var currentID int64
 	var complete bool
 
-	err := db.Single().Query(ctx, spanner.Statement{
+	err = db.Single().Query(ctx, spanner.Statement{
 		SQL: fmt.Sprintf(constants.SelectMigration, ms.Config.Table),
 	}).Do(func(r *spanner.Row) error {
 		return r.Columns(&currentID, &complete)
@@ -175,8 +172,13 @@ func (ms *Migrations) getCurrentID(ctx context.Context, db *spanner.Client) (int
 	return int(currentID), nil
 }
 
-func (ms *Migrations) startMigration(ctx context.Context, db *spanner.Client, id int) error {
-	_, err := db.Apply(ctx, []*spanner.Mutation{
+func (ms *Migrations) startMigration(ctx context.Context, id int) error {
+	db, err := ms.Database(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Apply(ctx, []*spanner.Mutation{
 		spanner.Insert(
 			ms.Config.Table,
 			[]string{"id", "start_time"},
@@ -186,15 +188,49 @@ func (ms *Migrations) startMigration(ctx context.Context, db *spanner.Client, id
 	return err
 }
 
-func (ms *Migrations) batch(
+type Batch struct {
+	Statements        []*jimmyv1.Statement
+	FileDescriptorSet string
+}
+
+func (b *Batch) flush(s *jimmyv1.Statement) bool {
+	if b == nil || s == nil || len(b.Statements) == 0 {
+		return false
+	}
+
+	if b.Statements[0].Type != s.Type {
+		return true
+	}
+
+	set := s.GetFileDescriptorSet()
+
+	if set != "" && set != b.FileDescriptorSet {
+		return true
+	}
+
+	return false
+}
+
+func (b *Batch) add(s *jimmyv1.Statement) {
+	b.Statements = append(b.Statements, s)
+
+	if s.GetFileDescriptorSet() != "" {
+		b.FileDescriptorSet = s.GetFileDescriptorSet()
+	}
+}
+
+func (b *Batch) reset() {
+	b.Statements = nil
+	b.FileDescriptorSet = ""
+}
+
+func (ms *Migrations) runBatch(
 	ctx context.Context,
-	dbAdmin *database.DatabaseAdminClient,
-	db *spanner.Client,
 	m *Migration,
-	batch []*jimmyv1.Statement,
+	batch *Batch,
 	onRun OnMigrationBatch,
 ) error {
-	if len(batch) == 0 {
+	if batch == nil || len(batch.Statements) == 0 {
 		return nil
 	}
 
@@ -202,18 +238,47 @@ func (ms *Migrations) batch(
 		onRun(m, batch)
 	}
 
-	switch batch[0].Type {
+	switch batch.Statements[0].Type {
 	case jimmyv1.Type_DDL:
 		var statements []string
 
-		for _, b := range batch {
-			statements = append(statements, b.Sql)
+		for _, s := range batch.Statements {
+			statements = append(statements, s.Sql)
 		}
 
-		op, err := dbAdmin.UpdateDatabaseDdl(ctx, &databasepb.UpdateDatabaseDdlRequest{
+		req := &databasepb.UpdateDatabaseDdlRequest{
 			Database:   ms.DatabaseName(),
 			Statements: statements,
-		})
+		}
+
+		// attach proto descriptors
+		if batch.FileDescriptorSet != "" {
+			id := batch.FileDescriptorSet
+
+			var fileDescriptorSet *descriptorpb.FileDescriptorSet
+
+			if len(m.data.FileDescriptorSets) > 0 {
+				fileDescriptorSet = m.data.FileDescriptorSets[id]
+			}
+
+			if fileDescriptorSet == nil {
+				return fmt.Errorf("file descriptor set %q not found", id)
+			}
+
+			b, err := proto.Marshal(fileDescriptorSet)
+			if err != nil {
+				return fmt.Errorf("failed to marshal %q file descriptor set", id)
+			}
+
+			req.ProtoDescriptors = b
+		}
+
+		dbAdmin, err := ms.DatabaseAdmin(ctx)
+		if err != nil {
+			return err
+		}
+
+		op, err := dbAdmin.UpdateDatabaseDdl(ctx, req)
 		if err != nil {
 			return err
 		}
@@ -225,11 +290,16 @@ func (ms *Migrations) batch(
 	case jimmyv1.Type_DML:
 		var statements []spanner.Statement
 
-		for _, b := range batch {
-			statements = append(statements, spanner.Statement{SQL: b.Sql})
+		for _, s := range batch.Statements {
+			statements = append(statements, spanner.Statement{SQL: s.Sql})
 		}
 
-		_, err := db.ReadWriteTransaction(ctx, func(ctx context.Context, tx *spanner.ReadWriteTransaction) error {
+		db, err := ms.Database(ctx)
+		if err != nil {
+			return err
+		}
+
+		_, err = db.ReadWriteTransaction(ctx, func(ctx context.Context, tx *spanner.ReadWriteTransaction) error {
 			_, err := tx.BatchUpdate(ctx, statements)
 			return err
 		})
@@ -237,23 +307,33 @@ func (ms *Migrations) batch(
 			return err
 		}
 	case jimmyv1.Type_PARTITIONED_DML:
-		for _, b := range batch {
+		db, err := ms.Database(ctx)
+		if err != nil {
+			return err
+		}
+
+		for _, s := range batch.Statements {
 			_, err := db.PartitionedUpdate(ctx, spanner.Statement{
-				SQL: b.Sql,
+				SQL: s.Sql,
 			})
 			if err != nil {
 				return err
 			}
 		}
 	default:
-		return fmt.Errorf("unhandled type %s", batch[0].String())
+		return fmt.Errorf("unhandled type %s", batch.Statements[0].String())
 	}
 
 	return nil
 }
 
-func (ms *Migrations) completeMigration(ctx context.Context, db *spanner.Client, id int) error {
-	_, err := db.Apply(ctx, []*spanner.Mutation{
+func (ms *Migrations) completeMigration(ctx context.Context, id int) error {
+	db, err := ms.Database(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Apply(ctx, []*spanner.Mutation{
 		spanner.Update(
 			ms.Config.Table,
 			[]string{"id", "complete_time"},

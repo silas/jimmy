@@ -12,12 +12,12 @@ import (
 func newTemplates() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "templates",
-		Short: "Show template options",
+		Short: "Show templates",
 		Args:  args(),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var templates iter.Seq2[string, *jimmyv1.Template]
 
-			ms, err := newMigrations(cmd, true)
+			ms, err := getMigrations(cmd, true)
 			if err != nil {
 				templates = migrations.BuiltinTemplates()
 			} else {
@@ -25,12 +25,8 @@ func newTemplates() *cobra.Command {
 				ms.Close()
 			}
 
-			for templateID, template := range templates {
-				if template.GetDefault() {
-					cmd.Println(templateID, "(default)")
-				} else {
-					cmd.Println(templateID)
-				}
+			for templateID := range templates {
+				cmd.Println(templateID)
 			}
 
 			return nil

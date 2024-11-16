@@ -2,6 +2,7 @@ syntax = "proto3";
 package jimmy.v1;
 
 import "buf/validate/validate.proto";
+import "google/protobuf/descriptor.proto";
 
 enum Environment {
   // All environments.
@@ -38,6 +39,9 @@ message Statement {
 
   // The type of statement.
   Type type = 3;
+
+  // The file descriptor set for the statement.
+  optional string file_descriptor_set = 4;
 }
 
 // A Jimmy migration file.
@@ -54,4 +58,7 @@ message Migration {
   // If the specified migration has already been run then this
   // migration will be skipped.
   optional int32 squash_id = 2;
+
+  // The Protocol Buffers file descriptor sets for the migration.
+  map<string, google.protobuf.FileDescriptorSet> file_descriptor_sets = 6;
 }

@@ -10,12 +10,10 @@ Usage:
 
 Available Commands:
   init        Initialize migrations
-  bootstrap   Create initial migration
   create      Create a new migration
-  add         Add a statement to an existing migration
+  add         Add to an existing migration
   upgrade     Run all schema upgrades
-  envs        Show environment options
-  templates   Show template options
+  templates   Show templates
   help        Help about any command
 
 Flags:

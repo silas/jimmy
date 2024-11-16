@@ -13,4 +13,6 @@ const (
 	EnvProjectID           = "SPANNER_PROJECT_ID"
 	EnvInstanceID          = "SPANNER_INSTANCE_ID"
 	EnvDatabaseID          = "SPANNER_DATABASE_ID"
+
+	UpgradeFileDescriptorSet = "upgrade"
 )
