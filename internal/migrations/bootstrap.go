@@ -42,10 +42,10 @@ func (ms *Migrations) Bootstrap(ctx context.Context) (*Migration, error) {
 			continue
 		}
 
-		statement, err := newStatement(
+		statement, err := ms.newStatement(
 			sql,
 			jimmyv1.Environment_ALL,
-			jimmyv1.Template_TEMPLATE_UNSPECIFIED,
+			"",
 			jimmyv1.Type_DDL,
 		)
 		if err != nil {

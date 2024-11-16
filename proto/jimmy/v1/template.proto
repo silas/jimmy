@@ -1,0 +1,20 @@
+syntax = "proto3";
+package jimmy.v1;
+
+import "buf/validate/validate.proto";
+import "jimmy/v1/migration.proto";
+
+// A SQL template.
+message Template {
+  // A SQL statement.
+  string sql = 1 [(buf.validate.field).required = true];
+
+  // The environment in which to run the statement.
+  Environment env = 2;
+
+  // The type of statement.
+  Type type = 3;
+
+  // Whether the template is set as the default.
+  optional bool default = 4;
+}

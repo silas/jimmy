@@ -7,11 +7,11 @@ import (
 )
 
 type AddInput struct {
-	ID       int
-	SQL      string
-	Env      jimmyv1.Environment
-	Template jimmyv1.Template
-	Type     jimmyv1.Type
+	ID         int
+	SQL        string
+	Env        jimmyv1.Environment
+	TemplateID string
+	Type       jimmyv1.Type
 }
 
 func (ms *Migrations) Add(_ context.Context, input AddInput) error {
@@ -20,7 +20,7 @@ func (ms *Migrations) Add(_ context.Context, input AddInput) error {
 		return err
 	}
 
-	statement, err := newStatement(input.SQL, input.Env, input.Template, input.Type)
+	statement, err := ms.newStatement(input.SQL, input.Env, input.TemplateID, input.Type)
 	if err != nil {
 		return err
 	}

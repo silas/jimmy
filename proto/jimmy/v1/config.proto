@@ -2,6 +2,7 @@ syntax = "proto3";
 package jimmy.v1;
 
 import "buf/validate/validate.proto";
+import "jimmy/v1/template.proto";
 
 // The .jimmy.yml configuration file.
 message Config {
@@ -22,4 +23,7 @@ message Config {
     (buf.validate.field).required = true,
     (buf.validate.field).string.pattern = "^[a-zA-Z][a-zA-Z0-9_]*[a-zA-Z0-9]$"
   ];
+
+  // The custom templates.
+  map<string, Template> templates = 6;
 }

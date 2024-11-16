@@ -120,7 +120,7 @@ func newMigrations(cmd *cobra.Command, load bool) (*migrations.Migrations, error
 
 type migrationFlags struct {
 	SQL      string
-	Template jimmyv1.Template
+	Template string
 	Env      jimmyv1.Environment
 	Type     jimmyv1.Type
 }
@@ -131,20 +131,9 @@ func parseMigrationFlags(cmd *cobra.Command) (flags migrationFlags, err error) {
 		return
 	}
 
-	templateValue, err := cmd.Flags().GetString(flagTemplate)
+	flags.Template, err = cmd.Flags().GetString(flagTemplate)
 	if err != nil {
 		return
-	}
-
-	if templateValue != "" {
-		templateValue = strings.ToUpper(migrations.Slugify(templateValue))
-
-		templateInt, found := jimmyv1.Template_value[templateValue]
-		if !found {
-			return flags, fmt.Errorf("%q is not a valid template", templateValue)
-		}
-
-		flags.Template = jimmyv1.Template(templateInt)
 	}
 
 	envValue, err := cmd.Flags().GetString(flagEnv)

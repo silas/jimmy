@@ -3,19 +3,18 @@ package migrations
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/silas/jimmy/internal/constants"
 	jimmyv1 "github.com/silas/jimmy/internal/pb/jimmy/v1"
 )
 
 type CreateInput struct {
-	Name     string
-	SQL      string
-	Env      jimmyv1.Environment
-	Template jimmyv1.Template
-	Type     jimmyv1.Type
-	SquashID int
+	Name       string
+	SQL        string
+	Env        jimmyv1.Environment
+	TemplateID string
+	Type       jimmyv1.Type
+	SquashID   int
 }
 
 func (ms *Migrations) Create(ctx context.Context, input CreateInput) (*Migration, error) {
@@ -24,18 +23,17 @@ func (ms *Migrations) Create(ctx context.Context, input CreateInput) (*Migration
 		return nil, err
 	}
 
-	statement, err := newStatement(input.SQL, input.Env, input.Template, input.Type)
+	statement, err := ms.newStatement(input.SQL, input.Env, input.TemplateID, input.Type)
 	if err != nil {
 		return nil, err
 	}
 
 	slug := Slugify(input.Name)
 	if slug == "" {
-		if input.Template != jimmyv1.Template_TEMPLATE_UNSPECIFIED {
-			slug = strings.ToLower(jimmyv1.Template_name[int32(input.Template)])
-		} else {
-			slug = "none"
-		}
+		slug = Slugify(input.TemplateID)
+	}
+	if slug == "" {
+		slug = "none"
 	}
 
 	m := &jimmyv1.Migration{

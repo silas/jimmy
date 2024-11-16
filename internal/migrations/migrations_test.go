@@ -41,8 +41,8 @@ func TestMigrations(t *testing.T) {
 	// dml migration
 	{
 		m, err := h.Migrations.Create(h.Ctx, migrations.CreateInput{
-			Name:     "test-init",
-			Template: jimmyv1.Template_CREATE_TABLE,
+			Name:       "test-init",
+			TemplateID: "create-table",
 		})
 		require.NoError(t, err)
 		require.Equal(t, 1, m.ID())
@@ -393,6 +393,15 @@ func helper(t *testing.T) *helperData {
 	h.Migrations.Config.ProjectId = "demo-project"
 	h.Migrations.Config.InstanceId = "test"
 	h.Migrations.Config.DatabaseId = fmt.Sprintf("test%d", rand.Int63n(999999))
+	h.Migrations.Config.Templates = map[string]*jimmyv1.Template{
+		"hello-world": {
+			Sql: `
+CREATE TABLE hello_world (
+  id STRING(MAX) NOT NULL,
+  name STRING(MAX) NOT NULL
+) PRIMARY KEY (id)`,
+		},
+	}
 
 	t.Cleanup(func() {
 		dbAdmin, err := h.Migrations.DatabaseAdmin(h.Ctx)

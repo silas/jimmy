@@ -36,7 +36,14 @@ jobs:
       - name: GolangCI Lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.61.0
+          version: v1.62.0
+
+      - name: Buf
+        uses: bufbuild/buf-action@v1
+        with:
+          pr_comment: false
+          breaking: false
+          push: false
 
       - name: Test
         run: |

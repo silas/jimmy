@@ -28,5 +28,22 @@ func (ms *Migrations) Validate() error {
 		return errors.New("database ID required")
 	}
 
+	var defaultTemplateID string
+	for templateID, template := range ms.Config.Templates {
+		if !template.GetDefault() {
+			continue
+		}
+
+		if defaultTemplateID != "" {
+			return fmt.Errorf(
+				"%q and %q can't both be marked as the default template",
+				defaultTemplateID,
+				templateID,
+			)
+		}
+
+		defaultTemplateID = templateID
+	}
+
 	return nil
 }
