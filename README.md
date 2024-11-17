@@ -23,4 +23,5 @@ Flags:
   -h, --help              help for jimmy
   -i, --instance string   set Spanner instance ID
   -p, --project string    set Google project ID
+  -v, --version           version for jimmy
 ```

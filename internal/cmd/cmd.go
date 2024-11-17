@@ -19,6 +19,7 @@ func New() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:           constants.AppName,
+		Version:       constants.Version,
 		SilenceUsage:  false,
 		SilenceErrors: true,
 	}
