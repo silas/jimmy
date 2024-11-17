@@ -31,11 +31,9 @@ func New() *cobra.Command {
 	cmd.PersistentFlags().StringP(flagDatabase, "d", "", "set Spanner database ID")
 
 	cmd.AddCommand(newInit())
-	cmd.AddCommand(newBootstrap())
 	cmd.AddCommand(newCreate())
 	cmd.AddCommand(newAdd())
 	cmd.AddCommand(newUpgrade())
-	cmd.AddCommand(newEnvs())
 	cmd.AddCommand(newTemplates())
 
 	return cmd

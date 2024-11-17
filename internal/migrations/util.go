@@ -1,6 +1,9 @@
 package migrations
 
 import (
+	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"regexp"
 	"strings"
@@ -15,9 +18,14 @@ import (
 var (
 	slugifyChars            = regexp.MustCompile(`[^a-z0-9_]`)
 	slugifyMultiUnderscores = regexp.MustCompile(`_+`)
-	dmlPartitionedPrefix    = regexp.MustCompile(`^(?i)(DELETE|UPDATE)`)
-	dmlPrefix               = regexp.MustCompile(`^(?i)INSERT`)
+	dmlPartitionedPrefix    = regexp.MustCompile(`^(?i)\W*(DELETE|UPDATE)`)
+	dmlPrefix               = regexp.MustCompile(`^(?i)\W*INSERT`)
+	dmlProtoBundle          = regexp.MustCompile(`^(?i)\W*(CREATE|ALTER)\W+PROTO\W+BUNDLE`)
 )
+
+func Ref[T any](v T) *T {
+	return &v
+}
 
 func Slugify(s string) string {
 	s = strings.ToLower(s)
@@ -65,4 +73,29 @@ func detectType(sql string) jimmyv1.Type {
 	}
 
 	return jimmyv1.Type_DDL
+}
+
+func isProtoDDL(sql string) bool {
+	return dmlProtoBundle.MatchString(sql)
+}
+
+func checkFile(path, fileType string) error {
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("%q %s file not found", path, fileType)
+		}
+
+		return err
+	}
+
+	mode := fileInfo.Mode()
+
+	if mode.IsDir() {
+		return fmt.Errorf("%q is a directory, expected a %s file", path, fileType)
+	} else if !mode.IsRegular() {
+		return fmt.Errorf("%q is not a regular file", path)
+	}
+
+	return nil
 }

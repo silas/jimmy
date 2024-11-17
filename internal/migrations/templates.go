@@ -12,12 +12,12 @@ import (
 )
 
 const (
-	builtinDefaultTemplateID = "create-table"
+	builtinDefaultTemplate = "create-table"
 )
 
 var (
 	builtinTemplates = map[string]*jimmyv1.Template{
-		builtinDefaultTemplateID:     {Sql: constants.CreateTable, Type: jimmyv1.Type_DDL},
+		builtinDefaultTemplate:       {Sql: constants.CreateTable, Type: jimmyv1.Type_DDL},
 		"drop-table":                 {Sql: constants.DropTable, Type: jimmyv1.Type_DDL},
 		"add-column":                 {Sql: constants.AddColumn, Type: jimmyv1.Type_DDL},
 		"drop-column":                {Sql: constants.DropColumn, Type: jimmyv1.Type_DDL},
@@ -56,12 +56,9 @@ func templateSeq(templates map[string]*jimmyv1.Template) iter.Seq2[string, *jimm
 	}
 
 	if defaultTemplate == nil {
-		defaultTemplate = proto.Clone(templates[builtinDefaultTemplateID]).(*jimmyv1.Template)
-
-		v := true
-		defaultTemplate.Default = &v
-
-		templates[builtinDefaultTemplateID] = defaultTemplate
+		defaultTemplate = proto.Clone(templates[builtinDefaultTemplate]).(*jimmyv1.Template)
+		defaultTemplate.Default = Ref(true)
+		templates[builtinDefaultTemplate] = defaultTemplate
 	}
 
 	keys := slices.Sorted(maps.Keys(templates))

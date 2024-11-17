@@ -6,7 +6,7 @@ import (
 	jimmyv1 "github.com/silas/jimmy/internal/pb/jimmy/v1"
 )
 
-type AddInput struct {
+type AddUpgradeInput struct {
 	ID         int
 	SQL        string
 	Env        jimmyv1.Environment
@@ -14,7 +14,7 @@ type AddInput struct {
 	Type       jimmyv1.Type
 }
 
-func (ms *Migrations) Add(_ context.Context, input AddInput) error {
+func (ms *Migrations) AddUpgrade(_ context.Context, input AddUpgradeInput) error {
 	m, err := ms.Get(input.ID)
 	if err != nil {
 		return err

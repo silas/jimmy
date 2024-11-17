@@ -52,9 +52,7 @@ func (ms *Migrations) Create(ctx context.Context, input CreateInput) (*Migration
 			)
 		}
 
-		squashID := int32(sm.ID())
-
-		m.SquashId = &squashID
+		m.SquashId = Ref(int32(sm.ID()))
 	}
 
 	return ms.create(slug, m)

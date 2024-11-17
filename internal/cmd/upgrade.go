@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/silas/jimmy/internal/migrations"
-	jimmyv1 "github.com/silas/jimmy/internal/pb/jimmy/v1"
 )
 
 func newUpgrade() *cobra.Command {
@@ -16,7 +15,7 @@ func newUpgrade() *cobra.Command {
 		Aliases: []string{"up"},
 		Args:    args(),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ms, err := newMigrations(cmd, true)
+			ms, err := getMigrations(cmd, true)
 			if err != nil {
 				return err
 			}
@@ -27,18 +26,23 @@ func newUpgrade() *cobra.Command {
 				migrations.UpgradeOnStart(func(m *migrations.Migration) {
 					cmd.Println(fmt.Sprintf("migration[%d]: Started %q", m.ID(), m.Name()))
 				}),
-				migrations.UpgradeOnBatch(func(m *migrations.Migration, batch []*jimmyv1.Statement) {
+				migrations.UpgradeOnBatch(func(m *migrations.Migration, batch *migrations.Batch) {
 					var suffix string
 
-					if len(batch) != 1 {
+					if len(batch.Statements) != 1 {
 						suffix = "s"
+					}
+
+					if batch.FileDescriptorSet != "" {
+						suffix += fmt.Sprintf(" with file descriptor set %q",
+							batch.FileDescriptorSet)
 					}
 
 					cmd.Println(fmt.Sprintf(
 						"migration[%d]: Running %d %s statement%s",
 						m.ID(),
-						len(batch),
-						batch[0].Type.String(),
+						len(batch.Statements),
+						batch.Statements[0].Type.String(),
 						suffix,
 					))
 				}),

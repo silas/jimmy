@@ -2,9 +2,7 @@ package migrations
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"strconv"
 	"strings"
@@ -14,21 +12,9 @@ import (
 )
 
 func (ms *Migrations) Load(_ context.Context) error {
-	fileInfo, err := os.Stat(ms.Path)
+	err := checkFile(ms.Path, "config")
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("%q config file not found", ms.Path)
-		}
-
 		return err
-	}
-
-	mode := fileInfo.Mode()
-
-	if mode.IsDir() {
-		return fmt.Errorf("%q is a directory, expected a text file", ms.Path)
-	} else if !mode.IsRegular() {
-		return fmt.Errorf("%q is not a regular file", ms.Path)
 	}
 
 	err = Unmarshal(ms.Path, ms.Config)

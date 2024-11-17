@@ -7,11 +7,23 @@ import (
 	"strings"
 
 	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/descriptorpb"
 
+	"github.com/silas/jimmy/internal/constants"
 	jimmyv1 "github.com/silas/jimmy/internal/pb/jimmy/v1"
 )
 
-func (ms *Migrations) Bootstrap(ctx context.Context) (*Migration, error) {
+type BootstrapInput struct {
+	Name string
+}
+
+func (ms *Migrations) Bootstrap(ctx context.Context, input BootstrapInput) (*Migration, error) {
+	slug := Slugify(input.Name)
+	if slug == "" {
+		slug = "init"
+	}
+
 	err := ms.ensureAll(ctx)
 	if err != nil {
 		return nil, err
@@ -35,6 +47,8 @@ func (ms *Migrations) Bootstrap(ctx context.Context) (*Migration, error) {
 		return nil, errors.New("no statements")
 	}
 
+	hasFileDescriptorSet := len(ddl.ProtoDescriptors) > 0
+
 	migrationTableDDL := fmt.Sprintf("CREATE TABLE %s (", ms.Config.Table)
 
 	for _, sql := range ddl.Statements {
@@ -52,13 +66,29 @@ func (ms *Migrations) Bootstrap(ctx context.Context) (*Migration, error) {
 			return nil, err
 		}
 
+		if hasFileDescriptorSet && isProtoDDL(sql) {
+			statement.FileDescriptorSet = Ref(constants.UpgradeFileDescriptorSet)
+		}
+
 		upgrade = append(upgrade, statement)
 	}
 
-	squashID := int32(ms.latestID)
+	data := &jimmyv1.Migration{
+		Upgrade:            upgrade,
+		FileDescriptorSets: map[string]*descriptorpb.FileDescriptorSet{},
+		SquashId:           Ref[int32](0),
+	}
 
-	return ms.create("init", &jimmyv1.Migration{
-		Upgrade:  upgrade,
-		SquashId: &squashID,
-	})
+	if hasFileDescriptorSet {
+		fileDescriptorSet := &descriptorpb.FileDescriptorSet{}
+
+		err = proto.Unmarshal(ddl.ProtoDescriptors, fileDescriptorSet)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal file descriptor set: %w", err)
+		}
+
+		data.FileDescriptorSets[constants.UpgradeFileDescriptorSet] = fileDescriptorSet
+	}
+
+	return ms.create(slug, data)
 }
