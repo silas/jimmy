@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -21,9 +22,15 @@ func newUpgrade() *cobra.Command {
 			}
 			defer ms.Close()
 
+			var migrationStartTime time.Time
+
+			upgradeStartTime := time.Now()
+
 			err = ms.Upgrade(
 				cmd.Context(),
 				migrations.UpgradeOnStart(func(m *migrations.Migration) {
+					migrationStartTime = time.Now()
+
 					cmd.Println(fmt.Sprintf("migration[%d]: Started %q", m.ID(), m.Name()))
 				}),
 				migrations.UpgradeOnBatch(func(m *migrations.Migration, batch *migrations.Batch) {
@@ -47,14 +54,22 @@ func newUpgrade() *cobra.Command {
 					))
 				}),
 				migrations.UpgradeOnComplete(func(m *migrations.Migration) {
-					cmd.Println(fmt.Sprintf("migration[%d]: Completed", m.ID()))
+					cmd.Println(fmt.Sprintf(
+						"migration[%d]: Completed %s",
+						m.ID(),
+						displayDuration(migrationStartTime),
+					))
 				}),
 			)
 			if err != nil {
 				return err
 			}
 
-			cmd.Println(fmt.Sprintf("Done at migration %d", ms.LatestID()))
+			cmd.Println(fmt.Sprintf(
+				"Done at migration %d %s",
+				ms.LatestID(),
+				displayDuration(upgradeStartTime),
+			))
 
 			return nil
 		},
